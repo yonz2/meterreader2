@@ -13,17 +13,25 @@ This script uses ROBOFLOW Models to run the predistions. The Roboflow parameters
 #
 import cv2
 import os
-import json
 import math
-import argparse
-import logging
 from dotenv import load_dotenv
 
 import numpy as np
 from matplotlib import pyplot as plt
+from IPython import get_ipython
 
 import yaml
 
+def is_running_in_jupyter():
+    """Checks if the code is running in a Jupyter Notebook."""
+    try:
+        shell = get_ipython()
+        if shell is not None:
+            return True
+        else:
+            return False
+    except NameError:  # `get_ipython` not defined
+        return False
 
 def load_image(filepath):
     """Loads an image from a given file path, with error handling.
@@ -313,34 +321,6 @@ def determine_rotation_angle(img, horizontal_threshold=0.1):
     return median_angle
 
 
-def find_aligned_boxes(boxes, digit_y_alignment):
-    """Finds bounding boxes aligned at a specific Y position.
-
-    Args:
-    boxes: A list of bounding boxes represented as cv2.Rect objects.
-    digit_y_alignment: The maximum allowed Y difference for alignment (integer).
-
-    Returns:
-    A list of cv2.Rect objects representing the aligned bounding boxes, sorted by X-Value
-    """
-
-    aligned_boxes = []
-    current_box = None
-    for box in boxes:
-        box_x, box_y, box_h, box_w = box
-        if not current_box or abs(current_box_y - box_y) < digit_y_alignment:
-            if not current_box:
-                current_box = box
-                current_box_x, current_box_y, current_box_h, current_box_w = current_box
-                aligned_boxes.append(box)
-            else:
-                current_box = box
-
-    # Sort aligned_boxes by X-coordinate
-    aligned_boxes.sort(key=lambda box: box[0]) 
-
-    return aligned_boxes
-
 def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
     """
     Plots an image using Matplotlib, handling color conversions and different image types.
@@ -353,6 +333,9 @@ def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
         axis (str, optional) : Turn theplot's axis on or off. Defaults to On.
 
     """
+    if not is_running_in_jupyter():
+        return # If running inside a normal .py script, ignore the plot request and simply return
+    
     if not isinstance(image, np.ndarray):
         raise TypeError("Image must be a NumPy array.")
 
@@ -388,17 +371,17 @@ def main():
     # then padd that image to a fixed site, for use in a second model
     rotation_angle = determine_rotation_angle(image, horizontal_threshold=0.1)          
     image_rotated = rotate_image(image, rotation_angle)
-    save_image( image_rotated, "/Users/yonz/Workspace/images/IMG_6986_2.jpg")
+    plot_image( image_rotated)
 
     # Scale the image
     scaled_image = scale_image(image_rotated,new_size=[192,768], orientation='landscape', pad_color=[255,255,255]  )
     print(f"Scaled Image shape: {scaled_image.shape}\nRottion Angle: {rotation_angle}")
-    save_image( scaled_image, "/Users/yonz/Workspace/images/IMG_6986_3.jpg")
+    plot_image( scaled_image)
 
     # Convert to Binary (inverse)
 
     binary_image = convert_to_binary(scaled_image, invert=True)
-    save_image( binary_image, "/Users/yonz/Workspace/images/IMG_6986_4.jpg")
+    plot_image( binary_image)
 
     return 0
 
