@@ -63,16 +63,14 @@ The idea here is to "divide and conquer". I.e. to desect the image in three simp
 
 ### The Frame
 
-![Detected Frame](./static/detected-frame.jpg)
+![Detected Frame](static/detected-frame.png)
 
 ### The counter
 
-![Detected Counter](./static/detected-counter.jpg)
+![Detected Counter](static/detected-counter.png)
 
 ### The digits
 
-![Detected Digits](./static/detected-digits.jpg)
-
-
+![Detected Digits](static/detected-digits.png)
 
 
