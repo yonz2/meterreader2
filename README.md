@@ -36,11 +36,10 @@ Moved manually to the "weights" folder in the repository
 
 # MeterReader - The Predicter
 
-Class defintion: `predicter.py` 
-Notebook: `predicter_test.ipynb`
+Class defintion: `predicter.py`
 
+Notebook: `predicter_test.ipynb` (This just a simple Notebook tp test the MeeterReader Class defined in `predicter.py`)
 
-This notebok tests the prediction using the models trained by "trainer.ipynb"
 
 
 ## Training Data
@@ -52,7 +51,7 @@ The training data is taken from the respective Roboflow projects. The data is an
 The are pre-trained custom models, trained by the "trainer.ipynb script
 | Name       | Model            | Description |
 | -----------| ---------------- | --------------------- |
-| Frame      | meter-frame.pt   | Get Extract the Frame inside of the meter from the original image |
+| Frame      | meter-frame.pt   | Extract the Frame inside of the meter from the original image |
 | Counter    | meter-counter.pt | Extract the Counter from within the frame |
 | Digits     | meter-digits.pt  | Get the value of each digit of the Counter |
 
