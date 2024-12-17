@@ -11,7 +11,7 @@ class MeterReader:
     counter, and digits on an electricity meter.
     """
 
-    def __init__(self, project_path):
+    def __init__(self, weights_path):
         """
         Initializes the MeterReader class, loads YOLO models, and determines the device.
         
@@ -20,22 +20,22 @@ class MeterReader:
         """
         # Determine the device: Apple Silicon or CPU
         self.device = 'mps' if torch.backends.mps.is_available() else 'cpu'
-        print(f"Device used for inference: {self.device}")
+        # print(f"Device used for inference: {self.device}")
 
         # Define model paths
-        self.project_path = project_path
+        self.weights_path = weights_path
         self.model_paths = {
-            "frame": os.path.join(project_path, "meter-frame-1","weights","best.pt"),
-            "counter": os.path.join(project_path, "meter-counter-640-1", "weights", "best.pt"),
-            "digits": os.path.join(project_path, "meter-digits-3", "weights", "best.pt"),
+            "frame": os.path.join(self.weights_path, "meter-frame.pt"),
+            "counter": os.path.join(self.weights_path, "meter-counter.pt"),
+            "digits": os.path.join(self.weights_path, "meter-digits.pt"),
         }
 
         # Load models
-        print("Loading models...")
+        # print(f"Loading models... from:\n{self.model_paths}\n")
         self.model_frame = YOLO(self.model_paths["frame"])
         self.model_counter = YOLO(self.model_paths["counter"])
         self.model_digits = YOLO(self.model_paths["digits"])
-        print("Models loaded successfully!")
+        # print("Models loaded successfully!")
 
     def detect_frame(self, image_path):
         """
@@ -48,12 +48,12 @@ class MeterReader:
             tuple: Annotated image with bounding boxes, cropped frame image.
         """
         image = load_image(image_path)
-        print(f"Processing image: {image_path}, Shape: {image.shape}")
+        # print(f"Processing image: {image_path}, Shape: {image.shape}")
 
         results = self.model_frame(
-            image, device=self.device, imgsz=[640, 320], conf=0.4, iou=0.5
+            image, device=self.device, imgsz=[640, 320], conf=0.4, iou=0.5, verbose=False
         )
-        plot_image(results[0].plot(), "Detected Frame", bgr=True)
+        plot_image(results[0].plot(), f"Detected Frame on {os.path.basename(image_path)}", bgr=True)
         frame_image = None
         if results[0].boxes.xyxy is not None:
             box = results[0].boxes.xyxy[0]
@@ -73,7 +73,7 @@ class MeterReader:
             tuple: Annotated image, binary processed counter image.
         """
         results = self.model_counter(
-            frame_image, device=self.device, imgsz=[320, 320], conf=0.4, iou=0.5
+            frame_image, device=self.device, imgsz=[320, 320], conf=0.4, iou=0.5, verbose=False
         )
 
         counter_image = None
@@ -108,7 +108,7 @@ class MeterReader:
         meter_value_str = ""
         meter_value_int = None
         results = self.model_digits(
-            digits_image, device=self.device, imgsz=[192, 800], conf=0.4, iou=0.5
+            digits_image, device=self.device, imgsz=[192, 800], conf=0.4, iou=0.5, verbose=False
         )
 
         if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
@@ -200,8 +200,8 @@ class MeterReader:
 
 if __name__ == "__main__":
     # Example usage of the class
-    project_path = "/Users/yonz/Workspace/meterreader2/meterreader_YOLO"
-    meter_reader = MeterReader(project_path)
+    weights_path = "/Users/yonz/Workspace/meterreader2/weights"
+    meter_reader = MeterReader(weights_path)
 
     image_path = "/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg"
 
