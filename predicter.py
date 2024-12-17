@@ -1,22 +1,208 @@
-# (c) 2024 Yonz
-# License: Non License
-#
-#
 
-""" 
-## Process
-The detation of the value of the electricity meter is done using three different model, to simplify the detection (each model is small enough to allow three t be loaded at the same time). This simplifies the algorithm, as there is hardly any image manipulation required. Inspriration comes from (OpenCV practice: OCR for the electricity meter)[https://en.kompf.de/cplus/emeocv.html]. However, the use of OCR did not give the expected results.
-
-The idea here is to "divide and conquer". I.e. to desect the image in three simple steps, where each step will isolate a part of the image. Each part is big enough so the model will be simple and quick.
-
- """
-
-#
-# Uses the Ultralytics YOLOv11 Libraries
 from ultralytics import YOLO
 import torch
+from predict_helpers import *
 
-from  predict_helpers import *
 
-class predicter:
+class MeterReader:
+    """
+    MeterReader is a class that uses pre-trained YOLO models to detect the frame,
+    counter, and digits on an electricity meter.
+    """
+
+    def __init__(self, project_path):
+        """
+        Initializes the MeterReader class, loads YOLO models, and determines the device.
+        
+        Args:
+            project_path (str): The base path for project and model weights.
+        """
+        # Determine the device: Apple Silicon or CPU
+        self.device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+        print(f"Device used for inference: {self.device}")
+
+        # Define model paths
+        self.project_path = project_path
+        self.model_paths = {
+            "frame": f"{project_path}/meter-frame-1/weights/best.pt",
+            "counter": f"{project_path}/meter-counter-640-1/weights/best.pt",
+            "digits": f"{project_path}/meter-digits-3/weights/best.pt",
+        }
+
+        # Load models
+        print("Loading models...")
+        self.model_frame = YOLO(self.model_paths["frame"])
+        self.model_counter = YOLO(self.model_paths["counter"])
+        self.model_digits = YOLO(self.model_paths["digits"])
+        print("Models loaded successfully!")
+
+    def detect_frame(self, image_path):
+        """
+        Detects the frame in the meter image.
+        
+        Args:
+            image_path (str): Path to the input image.
+        
+        Returns:
+            tuple: Annotated image with bounding boxes, cropped frame image.
+        """
+        image = load_image(image_path)
+        print(f"Processing image: {image_path}, Shape: {image.shape}")
+
+        results = self.model_frame(
+            image, device=self.device, imgsz=[640, 320], conf=0.4, iou=0.5
+        )
+
+        frame_image = None
+        if results[0].boxes.xyxy is not None:
+            box = results[0].boxes.xyxy[0]
+            x1, y1, x2, y2 = map(int, box.tolist())
+            frame_image = image[y1:y2, x1:x2].copy()
+
+        return results[0].plot(), frame_image
+
+    def detect_counter(self, frame_image):
+        """
+        Detects the counter region from the frame image.
+        
+        Args:
+            frame_image (ndarray): Cropped frame image.
+        
+        Returns:
+            tuple: Annotated image, binary processed counter image.
+        """
+        results = self.model_counter(
+            frame_image, device=self.device, imgsz=[320, 320], conf=0.4, iou=0.5
+        )
+
+        counter_image = None
+        if results[0].boxes.xyxy is not None:
+            box = results[0].boxes.xyxy[0]
+            x1, y1, x2, y2 = map(int, box.tolist())
+            counter_image = frame_image[y1:y2, x1:x2].copy()
+
+            rotation_angle = determine_rotation_angle(counter_image, horizontal_threshold=0.1)
+            rotated_image = rotate_image(counter_image, rotation_angle)
+            binary_image = convert_to_binary(rotated_image, invert=True, bgr=True)
+            return results[0].plot(), binary_image
+
+        return results[0].plot(), None
+
+    def detect_digits(self, digits_image):
+        """
+        Detects digits from the binary processed counter image.
+        
+        Args:
+            digits_image (ndarray): Processed binary image of the counter.
+        
+        Returns:
+            tuple: Annotated image, string value, integer value.
+        """
+        digit_name_map = {
+            "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+            "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9"
+        }
+
+        meter_value_str = ""
+        meter_value_int = None
+        results = self.model_digits(
+            digits_image, device=self.device, imgsz=[192, 800], conf=0.4, iou=0.5
+        )
+
+        if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
+            plot_image(results[0].plot(), title="Detected Digits", bgr=True)
+            boxes = results[0].boxes.xyxy.tolist()  # Convert to list for easier iteration
+            class_ids = results[0].boxes.cls.tolist()
+            names = results[0].names
+
+            valid_boxes = []
+
+            for i, box in enumerate(boxes):
+                x1, y1, x2, y2 = map(int, box)
+                w = x2 - x1
+                h = y2 - y1
+                area = w * h
+
+                if h > w and area >= 200:
+                    valid_boxes.append((i,x1, y1, x2, y2))
+                    # print(f"Valid Box found: Class {names[int(class_ids[i])]}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, w={w}, h={h}, area={area}")
+            
+            if valid_boxes:
+                # Sort valid boxes by x1 (reading order)
+                valid_boxes.sort(key=lambda box: box[1])  # Sort by the second element (x1)
+
+                num_digits_to_read = min(6, len(valid_boxes))
+                for digitNo in range(num_digits_to_read):
+                    i, x1, y1, x2, y2 = valid_boxes[digitNo]
+                    digit_name = names[int(class_ids[i])]
+                    digit_value = digit_name_map.get(digit_name) # Get the digit value from the map
+                    if digit_value is not None:
+                        meter_value_str += digit_value
+                        # print(f"Valid box label: #{digitNo+1} (x1={x1}): {digit_name} -> {digit_value}")
+                    else:
+                        # print(f"Warning: Digit name '{digit_name}' not found in lookup table.")
+                        meter_value_str = None # Reset meter value since a digit could not be identified.
+                        break # Stop processing since the meter value is now invalid
+
+                if meter_value_str is not None: # Only convert to int if all digits could be identified.
+                    # print(f"Meter Value (str): {meter_value_str}")
+                    try:
+                        meter_value_int = int(meter_value_str)
+                        # print(f"Meter Value (int): {meter_value_int}")
+                    except ValueError:
+                        print(f"Could not convert Meter Value ({meter_value_str}) to int")
+
+
+            else:
+                print("No valid boxes found matching the criteria.")
+        else:
+            print("No digits detected.")
+
+        return results[0].plot(), meter_value_str, meter_value_int
     
+    def predict_image(self, image_path):
+        """
+        Wrapper function to call all three detections in one go.
+        Returns the detected value (integer) or None if nothing is detected.
+        
+        Args:
+            image_path (str): Path to the input image.
+        
+        Returns:
+            int or None: The detected meter value.
+        """
+        # Call the detect_frame method
+        frame_plot, frame_image = self.detect_frame(image_path)
+        
+        if frame_image is None:
+            print("No frame detected.")
+            return None
+        
+        # Call the detect_counter method
+        counter_plot, counter_image = self.detect_counter(frame_image)
+        
+        if counter_image is None:
+            print("No counter detected.")
+            return None
+        
+        # Call the detect_digits method
+        digits_plot, digits_str, digits_int = self.detect_digits(counter_image)
+        
+        if digits_int is not None:
+            print(f"Detected Meter Value: {digits_int}")
+            return digits_int
+        else:
+            print("No digits detected.")
+            return None
+
+
+if __name__ == "__main__":
+    # Example usage of the class
+    project_path = "/Users/yonz/Workspace/meterreader2/meterreader_YOLO"
+    meter_reader = MeterReader(project_path)
+
+    image_path = "/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg"
+
+    meter_value = meter_reader.predict_image(image_path)
+
+    print(f"Image: {image_path}\nFinal Meter Value: {meter_value}")
