@@ -1,6 +1,7 @@
 
 from ultralytics import YOLO
 import torch
+import os
 from predict_helpers import *
 
 
@@ -24,9 +25,9 @@ class MeterReader:
         # Define model paths
         self.project_path = project_path
         self.model_paths = {
-            "frame": f"{project_path}/meter-frame-1/weights/best.pt",
-            "counter": f"{project_path}/meter-counter-640-1/weights/best.pt",
-            "digits": f"{project_path}/meter-digits-3/weights/best.pt",
+            "frame": os.path.join(project_path, "meter-frame-1","weights","best.pt"),
+            "counter": os.path.join(project_path, "meter-counter-640-1", "weights", "best.pt"),
+            "digits": os.path.join(project_path, "meter-digits-3", "weights", "best.pt"),
         }
 
         # Load models
@@ -52,7 +53,7 @@ class MeterReader:
         results = self.model_frame(
             image, device=self.device, imgsz=[640, 320], conf=0.4, iou=0.5
         )
-
+        plot_image(results[0].plot(), "Detected Frame", bgr=True)
         frame_image = None
         if results[0].boxes.xyxy is not None:
             box = results[0].boxes.xyxy[0]
@@ -76,6 +77,7 @@ class MeterReader:
         )
 
         counter_image = None
+        plot_image(results[0].plot(), "Detected Counter", bgr=True)
         if results[0].boxes.xyxy is not None:
             box = results[0].boxes.xyxy[0]
             x1, y1, x2, y2 = map(int, box.tolist())
@@ -189,7 +191,7 @@ class MeterReader:
         digits_plot, digits_str, digits_int = self.detect_digits(counter_image)
         
         if digits_int is not None:
-            print(f"Detected Meter Value: {digits_int}")
+            # print(f"Detected Meter Value: {digits_int}")
             return digits_int
         else:
             print("No digits detected.")
