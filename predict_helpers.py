@@ -15,9 +15,9 @@ import cv2
 import os
 import math
 from dotenv import load_dotenv
-
 import numpy as np
 from matplotlib import pyplot as plt
+
 from IPython import get_ipython
 
 import yaml
