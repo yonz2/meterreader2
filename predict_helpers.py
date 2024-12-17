@@ -298,7 +298,10 @@ def determine_rotation_angle(img, horizontal_threshold=0.1):
 
     horizontal_angles = []
     for [[x1, y1, x2, y2]] in lines:
-        slope = (y2 - y1) / (x2 - x1)
+        if x1 != x2: # Avoid divide by Zero Error
+            slope = (y2 - y1) / (x2 - x1)
+        else:
+            continue
         if abs(slope) < horizontal_threshold:
             angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
             horizontal_angles.append(angle)
