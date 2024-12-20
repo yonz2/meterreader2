@@ -62,3 +62,9 @@ The following steps are involved in preprocessing the images of the electricity 
 * **Data Augmentation:** Apply data augmentation techniques to increase the size and diversity of the training dataset.
 * **Hyperparameter Tuning:** Experiment with different model architectures, hyperparameters, and optimization strategies to improve performance.
 * **Error Analysis:** Analyze the model's errors and misclassifications to identify areas for improvement in the preprocessing, annotation, or training process.
+
+
+### Example Detection: The digits
+
+![Detected Digits](static/detected-digits.png)
+

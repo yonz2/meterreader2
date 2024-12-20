@@ -19,3 +19,11 @@ This stage focuses on training a YOLOv11 model to detect the rectangular area of
 
 * A trained YOLOv11n model capable of accurately detecting the meter area in images.
 * This model is used to crop the relevant region from the original images for Stage 2.
+
+
+### Example detection - The Frame
+
+
+![Detected Frame](static/detected-frame.png)
+
+
