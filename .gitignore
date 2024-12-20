@@ -166,3 +166,6 @@ github-token.py
 # Ignore traning data and models
 meter*/
 runs/
+counter-*/
+frame-*/
+yolo*.pt
