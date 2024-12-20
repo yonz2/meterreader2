@@ -1,27 +1,38 @@
 import cv2
 import os
 import numpy as np
-# import pytesseract
+from predict_helpers import *
 
-def extract_digits_ocr(img):
-  """Extracts digits from an image using Tesseract OCR.
 
-  Args:
-    img: The image to process as a NumPy array.
+def preprocess_stage3(image_path): 
+    #
 
-  Returns:
-    The extracted digits as a string, or None if no text is detected.
-  """
+    ## Preprocessing
 
-  try:
-    whitelist = "0123456789"
-    ocr_config = "--psm 6 -c tessedit_char_whitelist=" + whitelist
-    text = pytesseract.image_to_string(img, config=ocr_config)
-    text = text.strip()  # Remove leading/trailing whitespace
-    return text
-  except Exception as e:
-    print(f"Error during OCR: {e}")
-    return None
+    """ 
+    The following steps are involved in preprocessing the images of the electricity meter counter:
+
+    1. **Input:** Take the output of Stage 2, which is an image of the counter area cropped from the original image.
+    2. **Straighten:** Use horizontal line detection (e.g., Hough Line Transform) to estimate the rotation angle and straighten the image. This ensures proper digit alignment.
+    3. **Convert to Binary:**
+    - Convert the image to grayscale.
+    - Apply binary thresholding to create a black and white (B/W) image.
+    - Invert the binary image to make the digits white and the background black.
+    4. **Remove Borders:** Use horizontal line detection to identify and remove any remaining borders above and below the digits. This can be achieved using techniques like inpainting or morphological operations.
+    5. **Isolate Digits:** Apply edge detection (e.g., Canny edge detector) to identify the boundaries of the digits.
+    6. **Filter Contours:** Filter the resulting contours (detected digit boundaries) based on criteria such as:
+    - Height > Width (digits are usually taller than they are wide)
+    - Area (height * width) > threshold (to eliminate small noise or artifacts)
+    - Other conditions as needed (e.g., aspect ratio, solidity)
+    7. **Extract and Save:** Extract each segmented digit and save it as a separate image file.
+
+    """
+    # 1 load the image
+    image = load_image(image_path)
+    plot_image(image)
+
+    # 2. Straighten
+
 
 
 def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh):
