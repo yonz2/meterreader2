@@ -63,6 +63,13 @@ The following steps are involved in preprocessing the images of the electricity 
 * **Hyperparameter Tuning:** Experiment with different model architectures, hyperparameters, and optimization strategies to improve performance.
 * **Error Analysis:** Analyze the model's errors and misclassifications to identify areas for improvement in the preprocessing, annotation, or training process.
 
+* **Training results** :
+
+_preliminary model_
+
+![Training results Stage 1](static/results-digits.png)
+
+
 
 ### Example Detection: The digits
 

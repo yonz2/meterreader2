@@ -19,6 +19,13 @@ This stage focuses on training a YOLOv11 model to detect the counter area within
 
 * A trained YOLOv11n model capable of accurately detecting the counter area within the cropped images.
 * This model is used to further refine the region of interest for digit segmentation in Stage 3.
+* Training results:
+
+![Training results Stage 2](static/results-counter.png)
+
+
+
+
 
 ### Example Detection - The counter
 
