@@ -6,12 +6,12 @@
 RF_API_KEY: "IOgzRx9sitOu5Sz6YTOC"
 RF_SERVER_URL: "http://172.30.32.0:9001/"
 RF_WORKSPACE_NAME: "meterreader"
-RF_PROJECT_NAME_FRAME: "frame-f0pux"
-RF_PROJECT_NAME_COUNTERS: "counter-rbnzk"
+RF_PROJECT_NAME_FRAME: "meter-frame2"
+RF_PROJECT_NAME_COUNTERS: "meter-counter-inner-box"
 RF_PROJECT_NAME_DIGITS: "meter-digits-itvsi"
-RF_VERSION_FRAME: "2"
-RF_VERSION_COUNTERS: "1"
-RF_VERSION_DIGITS: "3"
+RF_VERSION_FRAME: "1"
+RF_VERSION_COUNTERS: "3"
+RF_VERSION_DIGITS: "5"
 YOLO_WEIGHTS_DIR: "../weights"
 
 # Parameters used in image manipulation

@@ -1,38 +1,29 @@
 import cv2
 import os
 import numpy as np
+import pytesseract
+
 from predict_helpers import *
 
+def extract_digits_ocr(img):
+  """Extracts digits from an image using Tesseract OCR.
 
-def preprocess_stage3(image_path): 
-    #
+  Args:
+    img: The image to process as a NumPy array.
 
-    ## Preprocessing
+  Returns:
+    The extracted digits as a string, or None if no text is detected.
+  """
 
-    """ 
-    The following steps are involved in preprocessing the images of the electricity meter counter:
-
-    1. **Input:** Take the output of Stage 2, which is an image of the counter area cropped from the original image.
-    2. **Straighten:** Use horizontal line detection (e.g., Hough Line Transform) to estimate the rotation angle and straighten the image. This ensures proper digit alignment.
-    3. **Convert to Binary:**
-    - Convert the image to grayscale.
-    - Apply binary thresholding to create a black and white (B/W) image.
-    - Invert the binary image to make the digits white and the background black.
-    4. **Remove Borders:** Use horizontal line detection to identify and remove any remaining borders above and below the digits. This can be achieved using techniques like inpainting or morphological operations.
-    5. **Isolate Digits:** Apply edge detection (e.g., Canny edge detector) to identify the boundaries of the digits.
-    6. **Filter Contours:** Filter the resulting contours (detected digit boundaries) based on criteria such as:
-    - Height > Width (digits are usually taller than they are wide)
-    - Area (height * width) > threshold (to eliminate small noise or artifacts)
-    - Other conditions as needed (e.g., aspect ratio, solidity)
-    7. **Extract and Save:** Extract each segmented digit and save it as a separate image file.
-
-    """
-    # 1 load the image
-    image = load_image(image_path)
-    plot_image(image)
-
-    # 2. Straighten
-
+  try:
+    whitelist = "0123456789"
+    ocr_config = "--psm 6 -c tessedit_char_whitelist=" + whitelist
+    text = pytesseract.image_to_string(img, config=ocr_config)
+    text = text.strip()  # Remove leading/trailing whitespace
+    return text
+  except Exception as e:
+    print(f"Error during OCR: {e}")
+    return None
 
 
 def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh):
@@ -42,10 +33,15 @@ def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh)
     cv2.imwrite(image_path_gray, gray)   
 
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY) 
-    cv2.imwrite(image_path_thresh, cv2.bitwise_not(thresh))
-    
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    img_size_h, img_size_w, img_size_rgb = image.shape
+
+    # 2. Straighten
+    #       Attemt to rotate the image so that the horizontal lines are straight,
+    rotation_angle = determine_rotation_angle(thresh, horizontal_threshold=0.1)          
+    image_rotated = rotate_image(thresh, rotation_angle)
+    cv2.imwrite(image_path_thresh, image_rotated)
+
+    contours, _ = cv2.findContours(image_rotated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    img_size_h, img_size_w = image_rotated.shape[:2]
     annotation = []
     pos = 0
     digit_image_size = 180
@@ -114,7 +110,7 @@ def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh)
 
             cv2.imwrite(f"{image_path_thresh[:-4]}_{pos}.png", background)  # Save digit
 
-            # img_text = extract_digits_ocr(background)
+            img_text = extract_digits_ocr(background)
 
             annotation_line = f"{pos} {x_anno} {y_anno} {w_anno} {h_anno}" 
             cv2.putText(image, annotation_line, (x, max(y - 10,1)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2) 
@@ -122,7 +118,7 @@ def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh)
             # Calculate text position
             text_x = x + int(w + 10)  # Right of center, with a small offset
             text_y = y + int(h / 2)      # Vertically centered        
-            # cv2.putText(image, img_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2) 
+            cv2.putText(image, img_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2) 
 
             # '0' represents the class ID for the digit (you might need to adjust this)
             # Write annotation to a file
@@ -136,12 +132,12 @@ def annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh)
 
 
 # Example usage
-# image_path = "static/frames/counters/IMG_6997.jpg"
-image_path = "/Users/yonz/Workspace/meterreader2/meterreader_YOLO/counter-1/crops/counter/IMG_69984.jpg"
+image_path = "/Users/yonz/Workspace/meterreader2/meterreader_YOLO/counter-1/crops/counter/IMG_6900.jpg"
+# image_path = "/home/yonz/workspace/MeterImages/original-3/IMG_6997.jpg"
 image_filename = os.path.basename(image_path)
 image_dir = os.path.dirname(image_path)
-image_path_new = os.path.join(image_dir, f"ann_{image_filename}")
-image_path_thresh = os.path.join(image_dir, f"thresh_{image_filename}")
-image_path_gray = os.path.join(image_dir, f"gray_{image_filename}")
+image_path_new = os.path.join(image_dir, f"{image_filename[:-4]}_ann.jpg")
+image_path_thresh = os.path.join(image_dir, f"{image_filename[:-4]}_thresh.jpg")
+image_path_gray = os.path.join(image_dir, f"{image_filename[:-4]}_gray.jpg")
 annotate_meter(image_path, image_path_new,image_path_gray,image_path_thresh)
 
