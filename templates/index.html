@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.37/dist/vue.global.js"></script>
+    <style>
+        html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .top-bar {
+            flex: 0 0 auto;
+            /* Top bar takes up only its intrinsic height */
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #app {
+            display: flex;
+            /* Sidebar and content aligned horizontally */
+            flex: 1;
+            /* Fills remaining space below the top bar */
+            height: calc(100vh - 80px);
+            /* Ensures #app adjusts for top-bar height */
+        }
+
+        .sidebar {
+            width: 25%;
+            /* Fixed width for the sidebar */
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .sidebar {
+            width: 20%;
+            /* Sidebar takes up 20% of the width */
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .content-attributes {
+            width: 30%;
+            /* Attributes section takes up 40% of the width */
+            padding: 20px;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .content-details {
+            flex: 1;
+            /* Remaining width for the details section */
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #fff;
+            /* Optional: Add a background color */
+        }
+
+        .thumbnail {
+            max-height: 100px;
+            max-width: 100px;
+            margin: 5px 0;
+        }
+
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            cursor: pointer;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        li:hover {
+            background-color: #e0e0e0;
+        }
+
+        .selected {
+            background-color: #d0f0ff;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+
+        h3,
+        h4 {
+            margin: 0 0 10px 0;
+        }
+
+        .details ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .details li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/file">
+            <input type="file" id="fileInput" name="file">
+            <button type="submit">Upload</button>
+        </form>
+        <button id="PruneDBButton" onclick="pruneDatabase()">Prune DB</button>
+        <button id="ReloadButton" onclick="location.reload()">Reload</button>
+        <div>
+            <button id="ShutdownButton" onclick="shutdownServer()">Shutdown</button>
+            <span id="serverStatus" style="color: green; text-align: right;">Running</span>
+        </div>
+    </div>
+
+    <div id="app">
+        {% raw %}
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h3>Files</h3>
+            <ul>
+                <li v-for="(metadata, filename) in files" :key="filename"
+                    :class="{ selected: filename === selectedFile }" @click="selectFile(filename)">
+                    {{ filename }}
+                </li>
+            </ul>
+        </div>
+
+        <!-- Content-Attributes -->
+        <div class="content-attributes">
+            <div v-if="selectedFile" class="details">
+                <h3>Details for: {{ selectedFile }}</h3>
+                <ul>
+                    <li v-for="(value, key) in files[selectedFile]" :key="key" @click="selectAttribute(key, value)">
+                        <strong>{{ key }}:</strong>
+                        <span v-if="isBase64Image(value)">
+                            <img :src="value" alt="Thumbnail" class="thumbnail" />
+                        </span>
+                        <span v-else>
+                            {{ isArray(value) ? '[Array]' : value }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            <div v-else>
+                <h3>Select a file to view its details</h3>
+            </div>
+        </div>
+
+        <!-- Content-Details -->
+        <div class="content-details">
+            <div v-if="selectedAttribute && isImage(selectedAttribute.value)">
+                <h4>Image Preview:</h4>
+                <img :src="`/image/${selectedAttribute.value}`" alt="Selected Image" />
+            </div>
+            <div v-else-if="selectedAttribute">
+                <h4>Selected Attribute:</h4>
+                <p><strong>{{ selectedAttribute.key }}</strong>: {{ selectedAttribute.value }}</p>
+            </div>
+        </div>
+
+        {% endraw %}
+    </div>
+
+
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    files: {}, // Metadata grouped by filename
+                    selectedFile: null, // Currently selected file
+                    selectedAttribute: null, // Currently selected attribute
+                };
+            },
+            methods: {
+                async fetchMetadata() {
+                    try {
+                        const response = await fetch('/metadata');
+                        const data = await response.json();
+                        console.log("Fetched metadata from /metadata:", data);
+                        this.files = data;
+                    } catch (error) {
+                        console.error('Error fetching metadata:', error);
+                    }
+                },
+                selectFile(filename) {
+                    console.log("File selected:", filename);
+                    this.selectedFile = filename;
+                    this.selectedAttribute = null; // Reset attribute selection
+                },
+                isArray(value) {
+                    // Check if the value is an array
+                    return Array.isArray(value);
+                },
+                isImage(value) {
+                    // Check if the value ends with a known image file extension
+                    return typeof value === 'string' && /\.(jpg|jpeg|png|gif)$/i.test(value);
+                },
+                isBase64Image(value) {
+                    // Check if the value starts with a Base64 image prefix
+                    return typeof value === 'string' && value.startsWith('data:image/jpeg;base64');
+                },
+                selectAttribute(key, value) {
+                    console.log("Attribute selected:", key, value);
+                    this.selectedAttribute = { key, value };
+                },
+            },
+            mounted() {
+                if (window.item_list) {
+                    console.log("Using server-provided item_list:", window.item_list);
+                    this.files = window.item_list; // Directly assign grouped metadata
+                    window.item_list = null; // Clear item_list to force re-fetch on re-mount
+                } else {
+                    console.log("Fetching metadata from API...");
+                    this.fetchMetadata(); // Fetch metadata from the API if no server-provided data
+                }
+                console.log("Files object:", this.files);
+            },
+
+        });
+
+        app.mount('#app');
+
+        // File upload handling
+        document.getElementById('uploadForm').addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/file', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data);
+                        fileInput.value = ''; // Reset the file input value
+                        window.location.reload(); // Reload the page
+                    })
+                    .catch(error => {
+                        console.error('Error uploading file:', error);
+                        alert('Error uploading file!');
+                    });
+            } else {
+                alert('Please select a file first.');
+            }
+        });
+
+        // Shutdown server functionality
+        function shutdownServer() {
+            fetch('/shutdown', { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        document.getElementById("serverStatus").textContent = "Stopped";
+                        document.getElementById("serverStatus").style.color = "red";
+                        document.getElementById("ReloadButton").disabled = true;
+                        document.getElementById("ShutdownButton").disabled = true;
+                        document.getElementById("PruneDBButton").disabled = true;
+                        document.getElementById("uploadForm").disabled = true;
+
+                        // After receiving the shutdown response, call /force_exit
+                        return fetch('/force_exit', { method: 'POST' });
+
+                    } else {
+                        alert('Failed to shutdown the server');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error shutting down server:', error);
+                });
+        }
+
+        function pruneDatabase() {
+            fetch('/prune_db', {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    if (data.message) {
+                        alert(`${data.message}. Deleted entries: ${data.deleted_count}`);
+                        window.location.reload(); // Reload the page to refresh the data
+                    } else if (data.error) {
+                        alert(`Error pruning database: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error pruning database:', error);
+                    alert('Failed to prune database.');
+                });
+        }
+    </script>
+</body>
+
+</html>

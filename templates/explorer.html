@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<html>
+
+<head>
+    <title>File Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.37/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <style>
+        html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            height: 100%;
+            margin: 0;
+            padding: 10px;
+        }
+
+        .top-bar {
+            flex: 0 0 auto;
+            /* Top bar takes up only its intrinsic height */
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #app {
+            display: flex;
+            /* Sidebar and content aligned horizontally */
+            flex: 1;
+            /* Fills remaining space below the top bar */
+            height: calc(100vh - 80px);
+            /* Ensures #app adjusts for top-bar height */
+        }
+
+
+        #sidebar {
+            width: 20%;
+            /* Sidebar takes up 20% of the width */
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        #content {
+            width: 80%;
+            /* file names section takes up 20% of the width */
+            padding: 20px;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+
+        .ruler {
+            position: absolute;
+            background: white;
+            z-index: 100;
+            font-size: 10px;
+            color: #666;
+            pointer-events: none;
+            /* Allow interaction with the image */
+        }
+
+        .horizontal {
+            position: absolute;
+            top: 0;
+            left: 20px;
+            /* Account for the vertical ruler's width */
+            right: 0;
+            height: 20px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+        }
+
+        .vertical {
+            position: absolute;
+            top: 20px;
+            /* Account for the horizontal ruler's height */
+            left: 0;
+            bottom: 0;
+            width: 20px;
+            border-right: 1px solid #ccc;
+            flex-direction: column;
+        }
+
+        .horizontal span,
+        .vertical span {
+            position: absolute;
+            background: white;
+        }
+
+        .horizontal span {
+            height: 10px;
+            width: 1px;
+        }
+
+        .vertical span {
+            width: 10px;
+            height: 1px;
+        }
+
+        .major {
+            background-color: black;
+            /* Major tick color */
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .minor {
+            background-color: gray;
+            /* Minor tick color */
+        }
+
+        .cursor-position {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            cursor: pointer;
+            margin: 5px 0;
+            padding: 10px;
+            border: 2px solid #111;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        li:hover {
+            background-color: #efeaaf;
+            cursor: pointer;
+        }
+
+        .selected {
+            background-color: #d0dfff;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+
+        h3,
+        h4 {
+            margin: 0 0 10px 0;
+        }
+
+        .details ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .details li {
+            margin-bottom: 10px;
+        }
+
+        .selected {
+            background-color: #007bff;
+            /* Highlight background color */
+            color: white;
+            /* Text color for better contrast */
+            font-weight: bold;
+            /* Optional: Emphasize the text */
+        }
+
+        pre {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+    </style>
+</head>
+
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <p>File Expolorer</p>
+    </div>
+    </div>
+    <div id="app">
+        {% raw %}
+        <div id="sidebar">
+            <h2>Files</h2>
+            <ul>
+                <li v-for="(file, index) in files" :key="index" :class="{ selected: file === currentFile }"
+                    @click="loadFile(file)">
+                    <a>{{ file }}</a>
+                </li>
+
+            </ul>
+        </div>
+        <div id="content" ref="content" @mousemove="updateCursorPosition">
+            <!-- Horizontal Ruler -->
+            <div class="ruler horizontal" ref="horizontalRuler">
+                <span v-for="x in horizontalTicks" :key="x" :style="{ left: x + 'px' }"
+                    :class="{ major: x % 72 === 0, minor: x % 12 === 0 }">
+                    <span v-if="x % 72 === 0">{{ x }}</span>
+                </span>
+            </div>
+
+            <!-- Vertical Ruler -->
+            <div class="ruler vertical" ref="verticalRuler">
+                <span v-for="y in verticalTicks" :key="y" :style="{ top: y + 'px' }"
+                    :class="{ major: y % 72 === 0, minor: y % 12 === 0 }">
+                    <span v-if="y % 72 === 0">{{ y }}</span>
+                </span>
+            </div>
+
+            <!-- Displayed Image -->
+            <img v-if="currentFile && isImage(currentFile)" :src="'/files/' + currentFile" alt="Image" ref="image"
+                @mousemove="updateCursorPosition" />
+
+            <pre v-else>{{ fileContent }}</pre>
+            <div class="cursor-position">
+                X: {{ cursorPosition.x }}px, Y: {{ cursorPosition.y }}px
+            </div>
+        </div>
+        {% endraw %}
+    </div>
+
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    files: [],            // List of files in the directory
+                    currentFile: null,    // File currently being viewed
+                    fileContent: '',      // Content of the current file
+                    cursorPosition: { x: 0, y: 0 },
+                    contentWidth: 800, // Set initial dimensions
+                    contentHeight: 600,
+                };
+            },
+            created() {
+                // Initialize Socket.IO and fetch the initial file list
+                this.socket = io();
+
+                // Fetch the initial list of files from the server
+                this.fetchFileList();
+
+                // Listen for updates from the server
+                this.socket.on('file_list_updated', (updatedFiles) => {
+                    console.log('Updated file list from server:', updatedFiles);
+                    this.files = updatedFiles; // Update the file list
+                });
+            },
+            computed: {
+                horizontalTicks() {
+                    // Generate tick positions for the horizontal ruler
+                    return Array.from({ length: Math.ceil(this.contentWidth / 12) }, (_, i) => i * 12);
+                },
+                verticalTicks() {
+                    // Generate tick positions for the vertical ruler
+                    return Array.from({ length: Math.ceil(this.contentHeight / 12) }, (_, i) => i * 12);
+                },
+            },
+            methods: {
+                async fetchFileList() {
+                    try {
+                        // Fetch the file list from the API
+                        const response = await fetch('/api/files');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        const fileList = await response.json(); // Fetch the raw array
+                        console.log('Fetched file list:', fileList); // Debug log
+                        this.files = [...fileList]; // Set the file list
+
+                        // Automatically display the first file, if the list is not empty
+                        if (this.files.length > 0) {
+                            this.loadFile(this.files[0]);
+                        }
+                    } catch (err) {
+                        console.error('Error fetching file list:', err);
+                    }
+                },
+                async loadFile(file) {
+                    this.currentFile = file;
+                    try {
+                        const response = await fetch(`/files/${file}`);
+                        if (this.isImage(file)) {
+                            this.fileContent = ''; // Clear file content for images
+                        } else {
+                            this.fileContent = await response.text(); // Fetch text content for other files
+                        }
+                    } catch (err) {
+                        console.error('Error loading file:', err);
+                        this.fileContent = 'Error loading file.';
+                    }
+                },
+                isImage(file) {
+                    // Check if the file is an image based on its extension
+                    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp'];
+                    return imageExtensions.some((ext) => file.toLowerCase().endsWith(ext));
+                },
+                updateCursorPosition(event) {
+                    const image = this.$refs.image; // Reference to the image element
+                    if (image) {
+                        const imageRect = image.getBoundingClientRect();
+                        this.cursorPosition = {
+                            x: Math.round(event.clientX - imageRect.left),
+                            y: Math.round(event.clientY - imageRect.top),
+                        };
+                    } else {
+                        this.cursorPosition = { x: 0, y: 0 }; // Default if no image is loaded
+                    }
+                },
+                adjustRulers() {
+                    // Dynamically position the rulers relative to the image
+                    const image = this.$refs.image;
+                    const horizontalRuler = this.$refs.horizontalRuler;
+                    const verticalRuler = this.$refs.verticalRuler;
+
+                    if (image && horizontalRuler && verticalRuler) {
+                        const imageRect = image.getBoundingClientRect();
+
+                        // Position horizontal ruler
+                        horizontalRuler.style.top = `${imageRect.top - 20}px`;
+                        horizontalRuler.style.left = `${imageRect.left}px`;
+                        horizontalRuler.style.width = `${imageRect.width}px`;
+
+                        // Position vertical ruler
+                        verticalRuler.style.top = `${imageRect.top}px`;
+                        verticalRuler.style.left = `${imageRect.left - 20}px`;
+                        verticalRuler.style.height = `${imageRect.height}px`;
+
+                        // Update content dimensions for tick generation
+                        this.contentWidth = imageRect.width;
+                        this.contentHeight = imageRect.height;
+                    }
+                },
+            },
+            mounted() {
+                const image = this.$refs.image;
+                if (image) {
+                    // Call adjustRulers after the image has loaded
+                    image.addEventListener('load', this.adjustRulers);
+                }
+                // Adjust rulers on window resize
+                window.addEventListener('resize', this.adjustRulers);
+            },
+            beforeDestroy() {
+                const image = this.$refs.image;
+                if (image) {
+                    // Remove the event listener for the image load event
+                    image.removeEventListener('load', this.adjustRulers);
+                }
+                // Remove the event listener for window resize
+                window.removeEventListener('resize', this.adjustRulers);
+            },
+        });
+
+        app.mount('#app'); // Mount the Vue app to the DOM
+    </script>
+
+
+</body>
+
+</html>
