@@ -3,6 +3,7 @@
 # Setup a customer logger
 
 import os
+import getpass
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -27,7 +28,14 @@ def setup_custom_logger():
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.DEBUG)
 
-    log_file = f"./log/{script_name}.log"
+    log_dir = os.environ.get("LOG_DIR")
+    if os.path.isdir(log_dir):
+        log_file = os.path.join(log_dir, f"{script_name}.log")
+    else:
+        log_file = f"./log/{script_name}.log"
+    print(f"Log file: {log_file}. Current Working Directory is: {os.getcwd()}, Loggedin user is: {getpass.getuser()} ({os.getresuid()} | {os.getresgid()})")
+    if not os.path.isfile(log_file):
+        open(log_file, 'a').close()
     max_log_size = int(0.5 * 1024 * 1024)
     backup_count = 5
     file_handler = RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)

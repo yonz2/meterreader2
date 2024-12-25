@@ -1,0 +1,35 @@
+services:
+  meterreader:
+    image: meterreader
+    container_name: meterreader
+    hostname: meterreader
+    domainname: docker
+    networks:
+      - app_network
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 8099:8099
+    restart: no
+    environment:
+      FLASK_APP: server.py
+      ROBOFLOW_API_KEY: IOgzRx9sitOu5Sz6YTOC
+      ROBOFLOW_SERVER_URL: "http://roboflow:9001/"
+      ROBOFOLOW_WORKSPACE: meterreader
+      ROBOFOLOW_PROJECT: metervalues
+      ROBOFOLOW_PROJECT_VERSION: 3
+      MONGODB_URI: "mongodb://mongo:27017/"
+      QUART_ENV: development
+      QUART_DEBUG: 1
+      LOG_DIR: /usr/src/app/log
+    volumes: 
+      - /var/data/meterreader/log:/usr/src/app/log
+      - /var/data/meterreader/weights:/usr/src/app/weights
+      - /var/data/meterreader/templates:/usr/src/app/templates
+      - /var/data/meterreader/static:/usr/src/app/static
+
+networks:
+   app_network:
+     external: true      
+      

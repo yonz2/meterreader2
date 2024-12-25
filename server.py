@@ -87,25 +87,31 @@ async def process_image(image_path):
     
     if digits_int != 0:
         log_message(f"Detected Meter Value: {digits_int}", logging.DEBUG)
+    else:
         digits_int = 0
         digits_str = ""
-    else:
         log_message(f"No Digits Value found")
 
     # Store image metadata and intermediate files in MongoDB
 
 
     file_name_image = os.path.basename(image_path)
-    file_name_counter = f"{file_name_image[:-4]}_counter.jpg"
-    file_name_digits = f"{file_name_image[:-4]}_digits.jpg"
+    
     if frame_plot is not None:
         db_handler.insert_image(file_name_image, frame_plot)
+         
     if counter_plot is not None:
+        file_name_counter = f"{file_name_image[:-4]}_counter.jpg"
         db_handler.insert_image(file_name_counter, counter_plot)
+    else:
+        file_name_counter = f"No Counter found on {file_name_image[:-4]}"
+
     if digits_plot  is not None:
+        file_name_digits = f"{file_name_image[:-4]}_digits.jpg"
         db_handler.insert_image(file_name_digits, digits_plot)
         # detected_thumbnail = generate_thumbnail(digits_plot, max_height=64)
     else:
+        file_name_digits = f"No Digits found on {file_name_image[:-4]}"
         detected_thumbnail = None
 
     image_metadata = {

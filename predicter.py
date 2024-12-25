@@ -1,4 +1,5 @@
 
+import cv2
 from ultralytics import YOLO
 import torch
 import os
@@ -51,7 +52,7 @@ class MeterReader:
         # print(f"Processing image: {image_path}, Shape: {image.shape}")
 
         results = self.model_frame(
-            image, device=self.device, imgsz=[640, 640], conf=0.4, iou=0.5, verbose=False
+            image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
         )
         plot_image(results[0].plot(), f"Detected Frame on {os.path.basename(image_path)}", bgr=True)
         frame_image = None
@@ -73,12 +74,12 @@ class MeterReader:
             tuple: Annotated image, binary processed counter image.
         """
         results = self.model_counter(
-            frame_image, device=self.device, imgsz=[640, 702], conf=0.4, iou=0.5, verbose=False
+            frame_image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
         )
 
         counter_image = None
         plot_image(results[0].plot(), "Detected Counter", bgr=True)
-        if results[0].boxes.xyxy is not None:
+        if results[0].boxes.xyxy .nelement() !=0:
             box = results[0].boxes.xyxy[0]
             x1, y1, x2, y2 = map(int, box.tolist())
             counter_image = frame_image[y1:y2, x1:x2].copy()
@@ -88,8 +89,8 @@ class MeterReader:
             binary_image = convert_to_binary(rotated_image, invert=True, bgr=True)
             # plot_image(binary_image, "Binary Image will be passed to Dgits Detection")
             return results[0].plot(), binary_image
-
-        return results[0].plot(), None
+        else:
+            return None, None
 
     def detect_digits(self, digits_image):
         """
@@ -109,7 +110,7 @@ class MeterReader:
         meter_value_str = ""
         meter_value_int = None
         results = self.model_digits(
-            digits_image, device=self.device, imgsz=[192, 768], conf=0.4, iou=0.5, verbose=True
+            digits_image, device=self.device, imgsz=[192, 768], conf=0.6, iou=0.5, verbose=False
         )
 
         if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:

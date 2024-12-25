@@ -1,2 +1,16 @@
+opencv-contrib-python-headless
 ultralytics
-roboflow
+# roboflow
+numpy
+python-dotenv
+pymongo
+Jinja2
+Quart
+Werkzeug
+supervision
+hypercorn
+watchdog 
+python-socketio
+PyYAML
+ipython
+
