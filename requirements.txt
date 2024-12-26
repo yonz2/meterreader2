@@ -13,4 +13,5 @@ watchdog
 python-socketio
 PyYAML
 ipython
+paho-mqtt
 

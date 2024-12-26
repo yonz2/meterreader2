@@ -14,6 +14,7 @@ This script uses ROBOFLOW Models to run the predistions. The Roboflow parameters
 import cv2
 import os
 import math
+import base64
 from dotenv import load_dotenv
 import numpy as np
 from matplotlib import pyplot as plt
@@ -192,7 +193,44 @@ def scale_image(image, new_size=[640,640], orientation='portrait', pad_color = [
         # print(f"Exiting Scaling function: Dtype={return_image.dtype}")
     return return_image
 
+def generate_thumbnail(image, max_width=256):
+    """
+    Generates a base64-encoded thumbnail of the given image.
 
+    :param image: The input image.
+    :param max_width: Maximum width for the thumbnail (default: 256 pixels).
+    :return: A string in the format '"photo": "data:image/jpeg;base64,/9j/4..."'.
+    """
+    try:
+
+        # Get original dimensions
+        original_height, original_width = image.shape[:2]
+
+        # Calculate the new dimensions
+        if original_width > max_width:
+            scale_factor = max_width / original_width
+            new_width = int(max_width)
+            new_height = int(original_height * scale_factor)
+        else:
+            new_width = int(original_width)
+            new_height = int(original_height)
+
+        # Resize the image while maintaining the aspect ratio
+        resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+        # Convert the resized image to a JPEG format
+        _, buffer = cv2.imencode('.jpg', resized_image)
+
+        # Encode the image as a Base64 string
+        base64_encoded = base64.b64encode(buffer).decode('utf-8')
+
+        # Return the formatted string
+        return f'data:image/jpeg;base64,{base64_encoded}'
+
+    except Exception as ex:
+        # Log the error (optional) and return an empty string
+        # log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
+        return ""
 
 def convert_to_grayscale(image):
     """Converts the image passed to the funczion to Grayscale

@@ -71,7 +71,7 @@ class MeterReader:
             frame_image (ndarray): Cropped frame image.
         
         Returns:
-            tuple: Annotated image, binary processed counter image.
+            tuple: Annotated image, binary processed counter image, A thumbnail of the counter image (256 pixels wide)
         """
         results = self.model_counter(
             frame_image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
@@ -88,9 +88,10 @@ class MeterReader:
             rotated_image = rotate_image(counter_image, rotation_angle)
             binary_image = convert_to_binary(rotated_image, invert=True, bgr=True)
             # plot_image(binary_image, "Binary Image will be passed to Dgits Detection")
-            return results[0].plot(), binary_image
+            detected_thumbnail = generate_thumbnail(counter_image)
+            return results[0].plot(), binary_image, detected_thumbnail
         else:
-            return None, None
+            return None, None, None
 
     def detect_digits(self, digits_image):
         """

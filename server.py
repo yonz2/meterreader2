@@ -41,7 +41,7 @@ app.config['MAX_CONTENT_LENGTH'] = 10*1024*1024 # 10MB
 
 # Set static folder path
 static_folder_path = f"{app.static_folder}/"
-print(f"Root Path: {app.root_path} - Static Folder: {app.static_folder} - Template Folder: {app.template_folder}")
+log_message(f"Root Path: {app.root_path} - Static Folder: {app.static_folder} - Template Folder: {app.template_folder}")
 
 weights_path = os.path.join(app.root_path, "weights")
 
@@ -73,7 +73,7 @@ async def process_image(image_path):
     else:
         log_message(f"Frame Shape returned from 'detect_frame': {frame_image.shape}")
         # Call the detect_counter method
-        counter_plot, counter_image = meter_reader.detect_counter(frame_image)
+        counter_plot, counter_image, detected_thumbnail = meter_reader.detect_counter(frame_image)
     
     if counter_image is None:
         log_message(f"No counter detected on image {image_path}")
@@ -103,13 +103,13 @@ async def process_image(image_path):
     if counter_plot is not None:
         file_name_counter = f"{file_name_image[:-4]}_counter.jpg"
         db_handler.insert_image(file_name_counter, counter_plot)
+        
     else:
         file_name_counter = f"No Counter found on {file_name_image[:-4]}"
 
     if digits_plot  is not None:
         file_name_digits = f"{file_name_image[:-4]}_digits.jpg"
         db_handler.insert_image(file_name_digits, digits_plot)
-        # detected_thumbnail = generate_thumbnail(digits_plot, max_height=64)
     else:
         file_name_digits = f"No Digits found on {file_name_image[:-4]}"
         detected_thumbnail = None
@@ -121,7 +121,7 @@ async def process_image(image_path):
         "image_path": image_path,
         "value_str": digits_str,
         "value_int": digits_int,  
-        # "detected_thumbnail": detected_thumbnail,
+        "detected_thumbnail": detected_thumbnail,
         "processed_at": datetime.now(tz=timezone.utc).isoformat()  # Add UTC timestamp  
             }
     log_message(f"Image Data Stored in MongoDB {file_name_image}: Value: {digits_int}", logging.DEBUG)
@@ -254,7 +254,7 @@ async def info():
 
     # Fetch the latest 16 image metadata entries from MongoDB
     grouped_metadata = db_handler.get_grouped_metadata(limit=16)
-    print("Before rendering: Number of items found in MongoDB: ", len(grouped_metadata))
+    log_message(f"Before rendering: Number of items found in MongoDB: {len(grouped_metadata)}", logging.DEBUG)
     # print(json.dumps(item_list, indent=4, sort_keys=True))
 
     return await render_template("index.html", item_list=grouped_metadata, ws_url=ws_url)
