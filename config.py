@@ -35,15 +35,20 @@ class ConfigLoader:
             print(f"Error parsing YAML file {self.config_path}: {e}. Exiting...")
             exit()
 
-    def get(self, key, default=None):
+       def get(self, topic, key, default=None):
         """
-        Get a configuration value by key, with an optional default.
+        Get a configuration value by topic and key, with an optional default.
+
+        :param topic: The topic (section) in the configuration.
         :param key: The key to retrieve from the configuration.
         :param default: The default value if the key is not found.
         :return: The value associated with the key, or the default value.
         """
-        return self.config_data.get(key, default)# Config file used for Prediction and Image manipulation
-
+        topic_data = self.config_data.get(topic)
+        if topic_data:
+            return topic_data.get(key, default)
+        return default
+        
     def print_config(self):
         """
         Prints the loaded configuration data in YAML format.

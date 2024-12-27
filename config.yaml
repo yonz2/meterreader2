@@ -1,34 +1,53 @@
 # Config file used for Prediction and Image manipulation
 # (c) 2024 Yonz
 # License: No License
-#
-# Roboflow configuration parameters
-RF_API_KEY: "IOgzRx9sitOu5Sz6YTOC"
-RF_SERVER_URL: "http://172.30.32.0:9001/"
-RF_WORKSPACE_NAME: "meterreader"
-RF_PROJECT_NAME_FRAME: "meter-frame2"
-RF_PROJECT_NAME_COUNTERS: "meter-counter-inner-box"
-RF_PROJECT_NAME_DIGITS: "meter-digits-itvsi"
-RF_VERSION_FRAME: "1"
-RF_VERSION_COUNTERS: "3"
-RF_VERSION_DIGITS: "5"
-YOLO_WEIGHTS_DIR: "../weights"
 
-# Parameters used in image manipulation
-DEFAULT_CONFIDENCE: 66
-DEFAULT_OVERLAP: 10
-DEFAULT_MERGE_PARALLEL: true
-DEFAULT_DISPLAY_IMAGE: false
-DEFAULT_DEBUG: false
-DEFAULT_FILEPATH: "./static/"
-EXPAND_BBOX_BY: 1.03
-INCREASE_CONFIDENCE_BY: 1.2
-DEFAULT_MAX_HEIGHT: 1280
-canny_threshold1: 120
-canny_threshold2: 250
-digit_min_height: 20
-digit_max_height: 40
-digit_y_alignment: 10
 
-# Device to use for training / predictions
-DEVICE: "cpu"
+# --- Roboflow ---
+Roboflow:
+  API_KEY: "IOgzRx9sitOu5Sz6YTOC"
+  SERVER_URL: "http://172.30.32.0:9001/"
+  WORKSPACE_NAME: "meterreader"
+  PROJECT_NAME_FRAME: "meter-frame2"
+  PROJECT_NAME_COUNTERS: "meter-counter-inner-box"
+  PROJECT_NAME_DIGITS: "meter-digits-itvsi"
+  VERSION_FRAME: "1"
+  VERSION_COUNTERS: "3"
+  VERSION_DIGITS: "5"
+  YOLO_WEIGHTS_DIR: "../weights"
+
+
+# --- Image Manipulation ---
+ImageManipulation:
+  DEFAULT_CONFIDENCE: 66
+  DEFAULT_OVERLAP: 10
+  DEFAULT_MERGE_PARALLEL: true
+  DEFAULT_DISPLAY_IMAGE: false
+  DEFAULT_DEBUG: false
+  DEFAULT_FILEPATH: "./static/"
+  EXPAND_BBOX_BY: 1.03
+  INCREASE_CONFIDENCE_BY: 1.2
+  DEFAULT_MAX_HEIGHT: 1280
+  canny_threshold1: 120
+  canny_threshold2: 250
+  digit_min_height: 20
+  digit_max_height: 40
+  digit_y_alignment: 10
+
+
+# --- YOLO ---
+YOLO:
+  device: "cpu"
+  weights_path: "./weights"
+
+
+# --- MQTT ---
+MQTT:
+  broker: dokkan.zt     # The hostname or IP address of your MQTT broker
+  port: 1883            # The port used by your MQTT broker
+  username: mqtt_user   # Your MQTT username
+  password: Dokkan2025  # Your MQTT password
+  topic: homeassistant/sensor  # The base topic for MQTT messages
+  tracked_devices:      # A list of devices to track
+    - electricity_meter # Add more devices as needed
+

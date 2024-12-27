@@ -17,6 +17,7 @@
 #   https://www.home-assistant.io/integrations/mqtt/#sensors
 #
 import json
+import yaml
 import time
 import paho.mqtt.client as mqtt
 
@@ -37,9 +38,9 @@ class homeassistant_mqtt:
         self.connect_mqtt()
 
     def load_config(self):
-        """Loads configuration parameters from the config file."""
+        """Loads configuration parameters from the YAML config file."""
         with open(self.config_file, 'r') as f:
-            config = json.load(f)
+            config = yaml.safe_load(f)
         log_message(f"Parameters from {self.config_file}: {config}")
         self.mqtt_broker = config['mqtt_broker']
         self.mqtt_port = config['mqtt_port']

@@ -17,5 +17,24 @@
             "hw_version": "virtual_01",
             "sw_version": "2024.12.0"
         }
+    },
+    "Strompreis": {
+        "device_class": "energy",
+        "state_topic": "homeassistant/sensor/electricity_meter/state",
+        "state_class": "total_increasing",
+        "friendly_name": "Stromzähler",
+        "unit_of_measurement": "kWh",
+        "value_template": "{{ value_json.value}}",
+        "unique_id": "electricity_meter",
+        "device": {
+            "identifiers": [
+                "electricity_meter"
+            ],
+            "name": "Meterreader_electricity_meter",
+            "manufacturer": "VirtualDevice",
+            "model": "4PI",
+            "hw_version": "virtual_01",
+            "sw_version": "2024.12.0"
+        }
     }
 }

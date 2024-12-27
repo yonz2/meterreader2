@@ -203,7 +203,7 @@ class MeterReader:
 
 if __name__ == "__main__":
     # Example usage of the class
-    weights_path = "/Users/yonz/Workspace/meterreader2/weights"
+    weights_path = config.get('YOLO', 'weights_path')
     meter_reader = MeterReader(weights_path)
 
     image_path = "/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg"
