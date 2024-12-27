@@ -14,15 +14,10 @@ services:
     restart: no
     environment:
       FLASK_APP: server.py
-      ROBOFLOW_API_KEY: IOgzRx9sitOu5Sz6YTOC
-      ROBOFLOW_SERVER_URL: "http://roboflow:9001/"
-      ROBOFOLOW_WORKSPACE: meterreader
-      ROBOFOLOW_PROJECT: metervalues
-      ROBOFOLOW_PROJECT_VERSION: 3
-      MONGODB_URI: "mongodb://mongo:27017/"
       QUART_ENV: development
       QUART_DEBUG: 1
       LOG_DIR: /usr/src/app/log
+      CONFIG_FILE: "/usr/src/app/config.yaml"
     volumes: 
       - /var/data/meterreader/log:/usr/src/app/log
       - /var/data/meterreader/weights:/usr/src/app/weights

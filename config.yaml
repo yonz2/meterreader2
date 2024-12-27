@@ -16,6 +16,12 @@ Roboflow:
   VERSION_DIGITS: "5"
   YOLO_WEIGHTS_DIR: "../weights"
 
+# --- Mongo Database ---
+MONGODB:
+  URI: "mongodb://172.30.32.3:27017/"
+  database: "meterreader"
+  collection: "image_metadata"
+
 
 # --- Image Manipulation ---
 ImageManipulation:
@@ -39,6 +45,10 @@ ImageManipulation:
 YOLO:
   device: "cpu"
   weights_path: "./weights"
+  weights:
+    frame": "meter-frame.pt"
+    counter: "meter-counter.pt"
+    digits:  "meter-digits.pt"
 
 
 # --- MQTT ---

@@ -10,13 +10,12 @@ from logging.handlers import RotatingFileHandler
 # Define the logger at module level
 logger = None
 
-def setup_custom_logger():
+def setup_custom_logger(logger_name=None):
     global logger
 
-    script_name = os.path.splitext(os.path.basename(__file__))[0]
     logging.basicConfig(level=logging.INFO)
-
-    logger_name = f'{script_name}'
+    if not logger_name:
+        logger_name = os.path.splitext(os.path.basename(__file__))[0]
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
     logger.propagate = False  # Prevents logs from propagating to the root logger

@@ -20,6 +20,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from IPython import get_ipython
+from config import *
+from custom_logger import *
 
 import yaml
 
@@ -44,20 +46,20 @@ def load_image(filepath):
         image: Loaded image object or None if loading fails.
     """
     if not os.path.exists(filepath):
-        print(f"Error: File {filepath} does not exist.")
+       log_message(f"Error: File {filepath} does not exist.")
         return None
     elif not os.path.isfile(filepath):
-        print(f"Error: {filepath} is not a file.")
+       log_message(f"Error: {filepath} is not a file.")
         return None
     elif not os.access(filepath, os.R_OK):
-        print(f"Error: File {filepath} is not readable.")
+       log_message(f"Error: File {filepath} is not readable.")
         return None
 
     try:
         img = cv2.imread(filepath)
         return img
     except Exception as e:
-        print(f"Error: An exception occurred while loading the image. {e}")
+       log_message(f"Error: An exception occurred while loading the image. {e}")
         return None
 
 
@@ -77,17 +79,17 @@ def save_image(image, path):
         try:
             os.makedirs(directory)
         except OSError:
-            print(f"Error: Unable to create directory {directory}.")
+            log_message(f"Error: Unable to create directory {directory}.")
             return False
     elif not os.access(directory, os.W_OK):
-        print(f"Error: The directory {directory} is not writable.")
+        log_message(f"Error: The directory {directory} is not writable.")
         return False
 
     # Attempt to save the image
     try:
         cv2.imwrite(path, image)
     except Exception as e:
-        print(f"Error: Unable to save the image to {path}. {e}")
+        log_message(f"Error: Unable to save the image to {path}. {e}")
         return False
 
     return True
@@ -229,7 +231,7 @@ def generate_thumbnail(image, max_width=256):
 
     except Exception as ex:
         # Log the error (optional) and return an empty string
-        # log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
+        log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
         return ""
 
 def convert_to_grayscale(image):
@@ -294,7 +296,7 @@ def rotate_image(img, rotation_degrees):
         img_rotated = img_rotated.astype(np.uint8)  
 
     except Exception as e:
-        print(f"Error when trying to rotate image: {e}")
+       log_message(f"Error when trying to rotate image: {e}")
 
     return img_rotated
 
@@ -327,7 +329,7 @@ def determine_rotation_angle(img, horizontal_threshold=0.1):
             img_gray = img
 
     except AttributeError as e:
-        print(f"Error processing image: {e}")
+       log_message(f"Error processing image: {e}")
         return 0
         # Add more specific handling if needed (e.g., logging, skipping)
 
@@ -398,6 +400,15 @@ def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
 
 def main():
     print("This is just a collection of helper functions....")
+
+    # Load environment variables if running locally
+    load_dotenv()
+
+    # Set up the logger
+    setup_custom_logger()
+
+    # Get the configuuration parameters
+    config = ConfigLoader()
 
     # image = load_image("/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg")
 

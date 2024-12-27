@@ -14,11 +14,13 @@ class ConfigLoader:
         Initialize the ConfigLoader with the path to the configuration file.
         :param config_file: Path to the YAML configuration file.
         """
-        self.config_file = config_file
-        self.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),config_file)
-        self.config_data = self._load_config()
+        # if defined use the value defined in ENV, else default to config.yaml in current directory 
+        self.config_path = os.environ.get('CONFIG_FILE')
+        if not self.config_path:
+            self.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),config_file)
+        self.config_data = self.load_config()
 
-    def _load_config(self):
+    def load_config(self):
         """
         Load configuration data from a YAML file into a dictionary.
         """

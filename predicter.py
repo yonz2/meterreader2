@@ -5,6 +5,7 @@ import torch
 import os
 from predict_helpers import *
 
+from custom_logger import setup_custom_logger, log_message
 
 class MeterReader:
     """
@@ -12,27 +13,34 @@ class MeterReader:
     counter, and digits on an electricity meter.
     """
 
-    def __init__(self, weights_path):
+    def __init__(self, project_path=""):
         """
         Initializes the MeterReader class, loads YOLO models, and determines the device.
         
         Args:
             project_path (str): The base path for project and model weights.
         """
-        # Determine the device: Apple Silicon or CPU
-        self.device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+        # Determine the device: Apple Silicon or default defined in config.yaml
+
+        self.device = config.get('YOLO', 'device')
+        if torch.backends.mps.is_available():
+            self.device = 'mps' # Check if we it's running on Apple Silicon, then force mps
         # print(f"Device used for inference: {self.device}")
 
         # Define model paths
-        self.weights_path = weights_path
+        if project_path:
+            self.weights_path = project_path
+        else
+            self.weights_path = config.get('YOLO', 'weights_path')
+        self.weights = config.get('YOLO', 'weights')
         self.model_paths = {
-            "frame": os.path.join(self.weights_path, "meter-frame.pt"),
-            "counter": os.path.join(self.weights_path, "meter-counter.pt"),
-            "digits": os.path.join(self.weights_path, "meter-digits.pt"),
+            "frame": os.path.join(self.weights_path, self.weights['frame']),
+            "counter": os.path.join(self.weights_path,self.weights['counter']),
+            "digits": os.path.join(self.weights_path, self.weights['digits']),
         }
 
         # Load models
-        # print(f"Loading models... from:\n{self.model_paths}\n")
+        # print(f"Loading models... from:\n{weights_path}\n")
         self.model_frame = YOLO(self.model_paths["frame"])
         self.model_counter = YOLO(self.model_paths["counter"])
         self.model_digits = YOLO(self.model_paths["digits"])
@@ -200,14 +208,27 @@ class MeterReader:
             print("No digits detected.")
             return None
 
-
-if __name__ == "__main__":
+def main():
     # Example usage of the class
-    weights_path = config.get('YOLO', 'weights_path')
-    meter_reader = MeterReader(weights_path)
+    # Load environment variables if running locally
+    load_dotenv()
+
+    # Set up the logger
+    setup_custom_logger()
+
+    # Get the configuuration parameters
+    config = ConfigLoader()
+
+    # Note: All configuration parameters are stored in config.yaml
+    meter_reader = MeterReader()
 
     image_path = "/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg"
 
     meter_value = meter_reader.predict_image(image_path)
 
     print(f"Image: {image_path}\nFinal Meter Value: {meter_value}")
+
+    return 0
+
+if __name__ == "__main__":
+    main()

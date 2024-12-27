@@ -21,6 +21,8 @@ import yaml
 import time
 import paho.mqtt.client as mqtt
 
+from config import get, ConfigLoader
+
 from custom_logger import setup_custom_logger, log_message
 
 class homeassistant_mqtt:
@@ -38,16 +40,14 @@ class homeassistant_mqtt:
         self.connect_mqtt()
 
     def load_config(self):
-        """Loads configuration parameters from the YAML config file."""
-        with open(self.config_file, 'r') as f:
-            config = yaml.safe_load(f)
-        log_message(f"Parameters from {self.config_file}: {config}")
-        self.mqtt_broker = config['mqtt_broker']
-        self.mqtt_port = config['mqtt_port']
-        self.mqtt_username = config['mqtt_username']
-        self.mqtt_topic = config['mqtt_topic']
-        self.mqtt_password = config['mqtt_password']
-        self.tracked_devices = set(config['tracked_devices'])
+
+
+        self.mqtt_broker = config.get('MQTT', 'broker')
+        self.mqtt_port = config.get('MQTT', 'port')
+        self.mqtt_username = config.get('MQTT', 'username')
+        self.mqtt_topic = config.get('MQTT', 'topic')
+        self.mqtt_password = config.get('MQTT', 'password')
+        self.tracked_devices = set(config.get('MQTT', 'tracked_devices'))
 
     def connect_mqtt(self):
         """Sets up the MQTT client and connects to the broker."""
@@ -110,6 +110,8 @@ class homeassistant_mqtt:
 
 def main():
     # used to test the MQTT Integration
+
+    config = ConfigLoader()
 
     # Set up the logger
     setup_custom_logger()

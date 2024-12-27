@@ -5,12 +5,14 @@ from bson import ObjectId  # Import ObjectId to check and convert
 from io import BytesIO
 import cv2  # Required if image is in numpy array format
 from PIL import Image  # Optional for PIL image objects
+from config import get
+from custom_logger import log_message
 
 def get_database_and_collection():
 
-    mongodb_uri = os.getenv("MONGODB_URI", "mongodb://172.20.0.2:27017/")
-    mongodb_database = os.getenv("MONGODB_DATABASE_NAME", "meterreader")
-    mongodb_collection = os.getenv("MONGODB_COLLECTION", "image_metadata")  
+    mongodb_uri = config.get("MONOGODB', "URI", "mongodb://172.20.0.2:27017/")
+    mongodb_database = config.get("MONGODB", "database", "meterreader")
+    mongodb_collection = config.get"MONGODB" , "collection", "image_metadata")  
 
     db_handler = MongoDBHandler(
         uri=mongodb_uri,
@@ -87,7 +89,7 @@ class MongoDBHandler:
             existing_file = self.fs.find_one({"filename": filename})
             if existing_file:
                 self.fs.delete(existing_file._id)
-                print(f"Replaced existing file with filename '{filename}' in GridFS.")
+                log_message(f"Replaced existing file with filename '{filename}' in GridFS.")
 
             # Insert the new file into GridFS
             with open(file_path, "rb") as file:
@@ -220,14 +222,13 @@ class MongoDBHandler:
 
                 # Delete metadata entries from the collection
                 delete_result = self.collection.delete_many({"_id": {"$in": ids_to_delete}})
-                # log_message(f"Pruned {delete_result.deleted_count} old entries from the database, "
-                #             f"and deleted {deleted_files_count} files from GridFS.")
+                log_message(f"Pruned {delete_result.deleted_count} old entries from the database, and deleted {deleted_files_count} files from GridFS.")
                 
                 return {"deleted_metadata_count": delete_result.deleted_count, "deleted_files_count": deleted_files_count}
             else:
-                # log_message("No entries to prune.")
+                log_message("No entries to prune.")
                 return {"deleted_metadata_count": 0, "deleted_files_count": 0}
         except Exception as ex:
-            # log_message(f"Error pruning old entries: {ex}", logging.ERROR)
+            log_message(f"Error pruning old entries: {ex}", logging.ERROR)
             raise Exception(f"Error pruning old entries: {ex}")
     
