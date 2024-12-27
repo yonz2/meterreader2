@@ -37,7 +37,7 @@ class ConfigLoader:
             print(f"Error parsing YAML file {self.config_path}: {e}. Exiting...")
             exit()
 
-       def get(self, topic, key, default=None):
+    def get(self, topic, key, default=None):
         """
         Get a configuration value by topic and key, with an optional default.
 

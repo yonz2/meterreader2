@@ -3,9 +3,14 @@ import cv2
 from ultralytics import YOLO
 import torch
 import os
-from predict_helpers import *
 
-from custom_logger import setup_custom_logger, log_message
+# Import Image manipulation functions and other helpers used by the prediction functions
+from predicter import predict_helpers
+
+# In your main application file or any other file where you need these modules
+from helpers import custom_logger as custom_logger
+from helpers import config as config
+import logging
 
 class MeterReader:
     """
@@ -13,15 +18,18 @@ class MeterReader:
     counter, and digits on an electricity meter.
     """
 
-    def __init__(self, project_path=""):
+    def __init__(self, config, logger, project_path=""):
         """
         Initializes the MeterReader class, loads YOLO models, and determines the device.
         
         Args:
             project_path (str): The base path for project and model weights.
         """
-        # Determine the device: Apple Silicon or default defined in config.yaml
 
+        self.config = config
+        self.logger = logger
+
+        # Determine the device: Apple Silicon or default defined in config.yaml
         self.device = config.get('YOLO', 'device')
         if torch.backends.mps.is_available():
             self.device = 'mps' # Check if we it's running on Apple Silicon, then force mps
@@ -30,7 +38,7 @@ class MeterReader:
         # Define model paths
         if project_path:
             self.weights_path = project_path
-        else
+        else:
             self.weights_path = config.get('YOLO', 'weights_path')
         self.weights = config.get('YOLO', 'weights')
         self.model_paths = {
@@ -44,7 +52,7 @@ class MeterReader:
         self.model_frame = YOLO(self.model_paths["frame"])
         self.model_counter = YOLO(self.model_paths["counter"])
         self.model_digits = YOLO(self.model_paths["digits"])
-        # print("Models loaded successfully!")
+        self.logger.log_message(f"Models loaded successfully! - {self.weights}")
 
     def detect_frame(self, image_path):
         """
@@ -56,8 +64,8 @@ class MeterReader:
         Returns:
             tuple: Annotated image with bounding boxes, cropped frame image.
         """
-        image = load_image(image_path)
-        # print(f"Processing image: {image_path}, Shape: {image.shape}")
+        image = load_image(image_path, self.logger)
+        self.logger.log_message(f"Processing image: {image_path}, Shape: {image.shape}")
 
         results = self.model_frame(
             image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
@@ -92,11 +100,11 @@ class MeterReader:
             x1, y1, x2, y2 = map(int, box.tolist())
             counter_image = frame_image[y1:y2, x1:x2].copy()
 
-            rotation_angle = determine_rotation_angle(counter_image, horizontal_threshold=0.1)
-            rotated_image = rotate_image(counter_image, rotation_angle)
-            binary_image = convert_to_binary(rotated_image, invert=True, bgr=True)
+            rotation_angle = determine_rotation_angle(counter_image, self.logger, horizontal_threshold=0.1)
+            rotated_image = rotate_image(counter_image, rotation_angle, self.logger)
+            binary_image = convert_to_binary(rotated_image, self.logger, invert=True, bgr=True)
             # plot_image(binary_image, "Binary Image will be passed to Dgits Detection")
-            detected_thumbnail = generate_thumbnail(counter_image)
+            detected_thumbnail = generate_thumbnail(counter_image, self.logger)
             return results[0].plot(), binary_image, detected_thumbnail
         else:
             return None, None, None
@@ -123,7 +131,7 @@ class MeterReader:
         )
 
         if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
-            plot_image(results[0].plot(), title="Detected Digits", bgr=True)
+            plot_image(results[0].plot(), self.logger, title="Detected Digits", bgr=True)
             boxes = results[0].boxes.xyxy.tolist()  # Convert to list for easier iteration
             class_ids = results[0].boxes.cls.tolist()
             names = results[0].names
@@ -163,13 +171,13 @@ class MeterReader:
                         meter_value_int = int(meter_value_str)
                         # print(f"Meter Value (int): {meter_value_int}")
                     except ValueError:
-                        print(f"Could not convert Meter Value ({meter_value_str}) to int")
+                        self.logger.log_message(f"Could not convert Meter Value ({meter_value_str}) to int")
 
 
             else:
-                print("No valid boxes found matching the criteria.")
+                self.logger.log_message("No valid boxes found matching the criteria.")
         else:
-            print("No digits detected.")
+            self.logger.log_message("No digits detected.")
 
         return results[0].plot(), meter_value_str, meter_value_int
     
@@ -188,21 +196,21 @@ class MeterReader:
         frame_plot, frame_image = self.detect_frame(image_path)
         
         if frame_image is None:
-            print("No frame detected.")
+            self.logger.log_message("No frame detected.")
             return None
         
         # Call the detect_counter method
-        counter_plot, counter_image = self.detect_counter(frame_image)
+        counter_plot, counter_image, thumbnail_image = self.detect_counter(frame_image)
         
         if counter_image is None:
-            print("No counter detected.")
+            self.logger.log_message("No counter detected.")
             return None
         
         # Call the detect_digits method
         digits_plot, digits_str, digits_int = self.detect_digits(counter_image)
         
         if digits_int is not None:
-            # print(f"Detected Meter Value: {digits_int}")
+            self.logger.log_message(f"Detected Meter Value: {digits_int}")
             return digits_int
         else:
             print("No digits detected.")
@@ -213,20 +221,20 @@ def main():
     # Load environment variables if running locally
     load_dotenv()
 
-    # Set up the logger
-    setup_custom_logger()
+    # Create a Config object
+    config_instance = config.ConfigLoader("config.yaml")
 
-    # Get the configuuration parameters
-    config = ConfigLoader()
+    # Create a CustomLogger object
+    logger = custom_logger.CustomLogger(logger_name="Predicter_standalone")
 
     # Note: All configuration parameters are stored in config.yaml
-    meter_reader = MeterReader()
+    meter_reader = MeterReader(config_instance, logger)
+    image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
+    
 
-    image_path = "/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg"
+    meter_value = meter_reader.predict_image(image_test_path)
 
-    meter_value = meter_reader.predict_image(image_path)
-
-    print(f"Image: {image_path}\nFinal Meter Value: {meter_value}")
+    print(f"Image: {image_test_path}\nFinal Meter Value: {meter_value}")
 
     return 0
 

@@ -21,12 +21,12 @@ import yaml
 import time
 import paho.mqtt.client as mqtt
 
-from config import get, ConfigLoader
-
-from custom_logger import setup_custom_logger, log_message
+# Import your custom modules
+import helpers.custom_logger as custom_logger 
+import helpers.config as config 
 
 class homeassistant_mqtt:
-    def __init__(self, config_file="mqtt_config.json", template_file="mqtt_config_template.json"):
+    def __init__(self, config, logger, template_file="mqtt_config_template.json"):
         """
         Initializes the homeassistant_mqtt class.
 
@@ -34,20 +34,18 @@ class homeassistant_mqtt:
             config_file (str): Path to the configuration file. Defaults to "config.json".
             template_file (str): Path to the configuration template file. Defaults to "config_template.json".
         """
-        self.config_file = config_file
+        self.config = config
         self.template_file = template_file
-        self.load_config()
+        self.logger = logger
+
+        self.mqtt_broker = self.config.get('MQTT', 'broker')
+        self.mqtt_port = self.config.get('MQTT', 'port')
+        self.mqtt_username = self.config.get('MQTT', 'username')
+        self.mqtt_topic = self.config.get('MQTT', 'topic')
+        self.mqtt_password = self.config.get('MQTT', 'password')
+        self.tracked_devices = set(self.config.get('MQTT', 'tracked_devices'))
+        # Connect to the MQTT Broker
         self.connect_mqtt()
-
-    def load_config(self):
-
-
-        self.mqtt_broker = config.get('MQTT', 'broker')
-        self.mqtt_port = config.get('MQTT', 'port')
-        self.mqtt_username = config.get('MQTT', 'username')
-        self.mqtt_topic = config.get('MQTT', 'topic')
-        self.mqtt_password = config.get('MQTT', 'password')
-        self.tracked_devices = set(config.get('MQTT', 'tracked_devices'))
 
     def connect_mqtt(self):
         """Sets up the MQTT client and connects to the broker."""
@@ -72,7 +70,7 @@ class homeassistant_mqtt:
         for key, payload in reversed(templates.items()):
             config_topic = f"{self.mqtt_topic}/{new_device_id}/{key}/config"
             self.client.publish(config_topic, payload=None, retain=True)
-            log_message(f"Published: '<<None>>' to topic: {config_topic}")
+            self.logger.log_message(f"Published: '<<None>>' to topic: {config_topic}")
             time.sleep(3)
 
         for key, payload in templates.items():
@@ -82,7 +80,7 @@ class homeassistant_mqtt:
             config_topic = f"{self.mqtt_topic}/{new_device_id}/{key}/config"
             payload_str = json.dumps(payload)
             self.client.publish(config_topic, payload=payload_str, retain=True)
-            log_message(f"Published: {json.dumps(payload)} to topic: {config_topic}")
+            self.logger.log_message(f"Published: {json.dumps(payload)} to topic: {config_topic}")
             time.sleep(5)
 
     def send_value(self, device_id, value):
@@ -105,20 +103,20 @@ class homeassistant_mqtt:
         topic = f"{self.mqtt_topic}/{device_id}/state"
         self.client.publish(topic, payload=json_payload_str)
 
-        log_message(f"Published: {json_payload_str} to topic: {topic}")
+        self.logger.log_message(f"Published: {json_payload_str} to topic: {topic}")
 
 
 def main():
     # used to test the MQTT Integration
 
-    config = ConfigLoader()
+    # Create a Config object
+    config_instance = config.ConfigLoader("config.yaml")
 
-    # Set up the logger
-    setup_custom_logger()
-
+    # Create a CustomLogger object
+    logger = custom_logger.CustomLogger(logger_name="my_logger")
 
     # Create an instance of the class
-    ha_mqtt = homeassistant_mqtt() 
+    ha_mqtt = homeassistant_mqtt(config_instance, logger) 
 
     # # Create a new device configuration
     ha_mqtt.new_device_config("my_meter")  

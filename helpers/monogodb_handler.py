@@ -5,22 +5,12 @@ from bson import ObjectId  # Import ObjectId to check and convert
 from io import BytesIO
 import cv2  # Required if image is in numpy array format
 from PIL import Image  # Optional for PIL image objects
-from config import get
-from custom_logger import log_message
 
-def get_database_and_collection():
+import logging
 
-    mongodb_uri = config.get("MONOGODB', "URI", "mongodb://172.20.0.2:27017/")
-    mongodb_database = config.get("MONGODB", "database", "meterreader")
-    mongodb_collection = config.get"MONGODB" , "collection", "image_metadata")  
-
-    db_handler = MongoDBHandler(
-        uri=mongodb_uri,
-        db_name=mongodb_database,
-        collection_name= mongodb_collection
-    )
-
-    return db_handler
+# Import your custom modules
+import helpers.custom_logger as custom_logger 
+import helpers.config as config 
 
 # Helper function to make metadata JSON serializable
 def convert_to_serializable(data):
@@ -39,17 +29,21 @@ def convert_to_serializable(data):
         return data
 
 class MongoDBHandler:
-    def __init__(self, uri, db_name, collection_name):
+    def __init__(self, config, logger): 
         """
         Initialize the MongoDB handler with GridFS support.
-        :param uri: MongoDB connection URI.
-        :param db_name: Name of the database.
-        :param collection_name: Name of the collection for metadata storage.
+        :param config: The Config object providing configuration data.
         """
-        self.client = MongoClient(uri)
-        self.db = self.client[db_name]
-        self.fs = gridfs.GridFS(self.db)  # Initialize GridFS for storing large files
-        self.collection = self.db[collection_name]  # Metadata collection
+        self.config = config
+        self.logger = logger
+        mongodb_uri = self.config.get("MongoDB", "URI", "mongodb://172.20.0.2:27017/")
+        mongodb_database = self.config.get("MongoDB", "database", "meterreader")
+        mongodb_collection = self.config.get("MongoDB", "collection", "image_metadata")
+
+        self.client = MongoClient(mongodb_uri)
+        self.db = self.client[mongodb_database]
+        self.fs = gridfs.GridFS(self.db)
+        self.collection = self.db[mongodb_collection]
 
     def insert_image(self, filename, image_object):
         """
@@ -89,7 +83,7 @@ class MongoDBHandler:
             existing_file = self.fs.find_one({"filename": filename})
             if existing_file:
                 self.fs.delete(existing_file._id)
-                log_message(f"Replaced existing file with filename '{filename}' in GridFS.")
+                self.logger.log_message(f"Replaced existing file with filename '{filename}' in GridFS.")
 
             # Insert the new file into GridFS
             with open(file_path, "rb") as file:
@@ -218,17 +212,40 @@ class MongoDBHandler:
                             self.fs.delete(grid_out._id)
                             deleted_files_count += 1
                     except Exception as ex:
-                        print(f"Error deleting GridFS file '{filename}': {ex}")
+                        self.logger.log_message(f"Error deleting GridFS file '{filename}': {ex}")
 
                 # Delete metadata entries from the collection
                 delete_result = self.collection.delete_many({"_id": {"$in": ids_to_delete}})
-                log_message(f"Pruned {delete_result.deleted_count} old entries from the database, and deleted {deleted_files_count} files from GridFS.")
+                self.logger.log_message(f"Pruned {delete_result.deleted_count} old entries from the database, and deleted {deleted_files_count} files from GridFS.")
                 
                 return {"deleted_metadata_count": delete_result.deleted_count, "deleted_files_count": deleted_files_count}
             else:
-                log_message("No entries to prune.")
+                self.logger.log_message("No entries to prune.")
                 return {"deleted_metadata_count": 0, "deleted_files_count": 0}
         except Exception as ex:
-            log_message(f"Error pruning old entries: {ex}", logging.ERROR)
+            self.logger.log_message(f"Error pruning old entries: {ex}", logging.ERROR)
             raise Exception(f"Error pruning old entries: {ex}")
-    
+
+def main():
+    # used to test the MQTT Integration
+
+    # Create a Config object
+    config_instance = config.ConfigLoader("config.yaml")
+
+    # Create a CustomLogger object
+    logger = custom_logger.CustomLogger(logger_name="my_logger")
+
+    # Create an instance of the class
+    ha_mqtt = homeassistant_mqtt(config_instance, logger) 
+
+    # # Create a new device configuration
+    ha_mqtt.new_device_config("my_meter")  
+    sensor_state_topic = "homeassistant/sensor/electricity_meter/state"
+    xx = 'homeassistant/sensor/my_meter/Stromzaehler/config'
+    # # Send a value to Home Assistant
+    ha_mqtt.send_value("electricity_meter", 25000.0)
+
+
+
+if __name__ == "__main__":
+    main()

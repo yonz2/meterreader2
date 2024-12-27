@@ -20,8 +20,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from IPython import get_ipython
-from config import *
-from custom_logger import *
+# In your main application file or any other file where you need these modules
+from helpers import custom_logger
+from helpers import config as config
+import logging
 
 import yaml
 
@@ -36,7 +38,7 @@ def is_running_in_jupyter():
     except NameError:  # `get_ipython` not defined
         return False
 
-def load_image(filepath):
+def load_image(filepath, logger):
     """Loads an image from a given file path, with error handling.
 
     Args:
@@ -46,24 +48,24 @@ def load_image(filepath):
         image: Loaded image object or None if loading fails.
     """
     if not os.path.exists(filepath):
-       log_message(f"Error: File {filepath} does not exist.")
+        logger.log_message(f"Error: File {filepath} does not exist.")
         return None
     elif not os.path.isfile(filepath):
-       log_message(f"Error: {filepath} is not a file.")
+        logger.log_message(f"Error: {filepath} is not a file.")
         return None
     elif not os.access(filepath, os.R_OK):
-       log_message(f"Error: File {filepath} is not readable.")
+        logger.log_message(f"Error: File {filepath} is not readable.")
         return None
 
     try:
         img = cv2.imread(filepath)
         return img
     except Exception as e:
-       log_message(f"Error: An exception occurred while loading the image. {e}")
+        logger.log_message(f"Error: An exception occurred while loading the image. {e}")
         return None
 
 
-def save_image(image, path):
+def save_image(image, path, logger):
     """Saves an image to a specified file path, with checks for writeability.
 
     Args:
@@ -79,23 +81,23 @@ def save_image(image, path):
         try:
             os.makedirs(directory)
         except OSError:
-            log_message(f"Error: Unable to create directory {directory}.")
+            logger.log_message(f"Error: Unable to create directory {directory}.")
             return False
     elif not os.access(directory, os.W_OK):
-        log_message(f"Error: The directory {directory} is not writable.")
+        logger.log_message(f"Error: The directory {directory} is not writable.")
         return False
 
     # Attempt to save the image
     try:
         cv2.imwrite(path, image)
     except Exception as e:
-        log_message(f"Error: Unable to save the image to {path}. {e}")
+        logger.log_message(f"Error: Unable to save the image to {path}. {e}")
         return False
 
     return True
 
 
-def scale_image(image, new_size=[640,640], orientation='portrait', pad_color = []):
+def scale_image(image, logger, new_size=[640,640], orientation='portrait', pad_color = []):
     """Scales an image to a specified maximum height, ensuring the output dimensions 
     are multiples of 32 by cropping if necessary.
 
@@ -192,10 +194,10 @@ def scale_image(image, new_size=[640,640], orientation='portrait', pad_color = [
             return_image = np.hstack((return_image, right_border_image))  # Add right border
 
         return_image = return_image.astype(np.uint8)  # Convert to uint8
-        # print(f"Exiting Scaling function: Dtype={return_image.dtype}")
+        logger.log_message(f"Exiting Scaling function: Dtype={return_image.dtype}")
     return return_image
 
-def generate_thumbnail(image, max_width=256):
+def generate_thumbnail(image, logger, max_width=256):
     """
     Generates a base64-encoded thumbnail of the given image.
 
@@ -231,10 +233,10 @@ def generate_thumbnail(image, max_width=256):
 
     except Exception as ex:
         # Log the error (optional) and return an empty string
-        log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
+        logger.log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
         return ""
 
-def convert_to_grayscale(image):
+def convert_to_grayscale(image, logger):
     """Converts the image passed to the funczion to Grayscale
 
     Args:
@@ -243,7 +245,7 @@ def convert_to_grayscale(image):
     """
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-def convert_to_binary(image, bgr=False, invert=False):
+def convert_to_binary(image, logger, bgr=False, invert=False):
     """Converts the image to binary.
 
     Args:
@@ -270,7 +272,7 @@ def convert_to_binary(image, bgr=False, invert=False):
     return image_binary
 
 
-def rotate_image(img, rotation_degrees):
+def rotate_image(img, rotation_degrees, logger):
     """Rotates an image by the specified degrees.
 
     Args:
@@ -296,12 +298,12 @@ def rotate_image(img, rotation_degrees):
         img_rotated = img_rotated.astype(np.uint8)  
 
     except Exception as e:
-       log_message(f"Error when trying to rotate image: {e}")
+       logger.log_message(f"Error when trying to rotate image: {e}")
 
     return img_rotated
 
 
-def determine_rotation_angle(img, horizontal_threshold=0.1):
+def determine_rotation_angle(img, logger, horizontal_threshold=0.1):
     """Determines the angle to rotate an image to straighten it, considering only horizontal lines.
 
     Args:
@@ -329,7 +331,7 @@ def determine_rotation_angle(img, horizontal_threshold=0.1):
             img_gray = img
 
     except AttributeError as e:
-       log_message(f"Error processing image: {e}")
+        logger.log_message(f"Error processing image: {e}")
         return 0
         # Add more specific handling if needed (e.g., logging, skipping)
 
@@ -361,7 +363,7 @@ def determine_rotation_angle(img, horizontal_threshold=0.1):
     return median_angle
 
 
-def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
+def plot_image(image, logger, title="Image", cmap=None, bgr=False, axis="on"):
     """
     Plots an image using Matplotlib, handling color conversions and different image types.
 
@@ -404,33 +406,35 @@ def main():
     # Load environment variables if running locally
     load_dotenv()
 
-    # Set up the logger
-    setup_custom_logger()
+    # Create a Config object
+    config_instance = config.ConfigLoader("config.yaml")
 
-    # Get the configuuration parameters
-    config = ConfigLoader()
+    # Create a CustomLogger object
+    logger = custom_logger.CustomLogger(logger_name="predict_helper_standalone")
 
-    # image = load_image("/Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg")
-
-    image = load_image("/Users/yonz/Workspace/meterreader2/meterreader_YOLO/meter-counter-640-1/crops/counters-aonJ/IMG_6986.jpg")
-
-    print(f"Original Image shape: {image.shape}")
+    image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
+    image = load_image(image_test_path, logger)
+    if image is not None:
+        print(f"Original Image shape: {image.shape}")
+    else:
+        print(f"Image: {image_test_path} not found")
+        return -1
 
     # Attemt to rotate the image so that the horizontal lines are straight,
     # then padd that image to a fixed site, for use in a second model
-    rotation_angle = determine_rotation_angle(image, horizontal_threshold=0.1)          
-    image_rotated = rotate_image(image, rotation_angle)
-    plot_image( image_rotated)
+    rotation_angle = determine_rotation_angle(image, logger, horizontal_threshold=0.1)          
+    image_rotated = rotate_image(image, rotation_angle, logger)
+    plot_image( image_rotated, logger)
 
     # Scale the image
-    scaled_image = scale_image(image_rotated,new_size=[192,768], orientation='landscape', pad_color=[255,255,255]  )
+    scaled_image = scale_image(image_rotated,logger, new_size=[192,768], orientation='landscape', pad_color=[255,255,255]  )
     print(f"Scaled Image shape: {scaled_image.shape}\nRottion Angle: {rotation_angle}")
-    plot_image( scaled_image)
+    plot_image( scaled_image, logger)
 
     # Convert to Binary (inverse)
 
-    binary_image = convert_to_binary(scaled_image, invert=True)
-    plot_image( binary_image)
+    binary_image = convert_to_binary(scaled_image, logger, invert=True)
+    plot_image( binary_image, logger)
 
     return 0
 

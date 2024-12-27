@@ -4,12 +4,12 @@ import logging
 import json
 
 from dotenv import load_dotenv
-from custom_logger import setup_custom_logger, log_message
-from config import *
+
 from quart import Quart, current_app, g, request, Response, jsonify, abort
 from quart import render_template, url_for, send_from_directory
 from quart import send_file
 from quart import websocket  # Import the websocket module
+
 from datetime import datetime, timezone
 
 import asyncio
@@ -17,20 +17,33 @@ import sys
 
 from werkzeug.utils import secure_filename
 
+from predicter.predicter import MeterReader
 
-from predicter import MeterReader
+from helpers.monogodb_handler import MongoDBHandler
 
-from monogodb_handler import MongoDBHandler
-from monogodb_handler import get_database_and_collection, convert_to_serializable
 
 # Load environment variables if running locally
 load_dotenv()
 
-# Set up the logger
-setup_custom_logger()
+# In your main application file or any other file where you need these modules
+from helpers import custom_logger as custom_logger
+import logging
+from helpers import config as config
 
-# Get the configuuration parameters
-config = ConfigLoader()
+# Import Image manipulation functions and other helpers used by the prediction functions
+from predicter import predict_helpers
+
+
+# Create a Config object
+config_instance = config.ConfigLoader("config.yaml")
+
+# Create a CustomLogger object
+logger = custom_logger.CustomLogger(logger_name="MeterReader")
+
+# Initialize db handler and ImageProcessor (Load models)
+db_handler = MongoDBHandler(config_instance, logger) # connects to the Mongo Database
+meter_reader = MeterReader(config_instance, logger) # Loads the model used for predictions
+
 
 # Create the Quart application object
 app = Quart(__name__, 
@@ -41,13 +54,7 @@ app.config['MAX_CONTENT_LENGTH'] = 10*1024*1024 # 10MB
 
 # Set static folder path
 static_folder_path = f"{app.static_folder}/"
-log_message(f"Root Path: {app.root_path} - Static Folder: {app.static_folder} - Template Folder: {app.template_folder}")
-
-weights_path = os.path.join(app.root_path, "weights")
-
-# Initialize db handler and ImageProcessor (Load models)
-db_handler = get_database_and_collection() # connects to the Mongo Database
-meter_reader = MeterReader(weights_path) # Loads the model used for predictions
+logger.log_message(f"Root Path: {app.root_path} - Static Folder: {app.static_folder} - Template Folder: {app.template_folder}")
 
 async def process_image(image_path):
     """
@@ -61,36 +68,36 @@ async def process_image(image_path):
         int or None: The detected meter value.
     """
 
-    log_message(f"Inside process_Image {image_path}", logging.DEBUG)
+    logger.log_message(f"Inside process_Image {image_path}", logging.DEBUG)
 
     # Call the detect_frame method
     frame_plot, frame_image = meter_reader.detect_frame(image_path)
     
     if frame_image is None:
-        log_message(f"No frame detected on image {image_path}")
+        logger.log_message(f"No frame detected on image {image_path}")
         counter_image = None
         counter_plot = None
     else:
-        log_message(f"Frame Shape returned from 'detect_frame': {frame_image.shape}")
+        logger.log_message(f"Frame Shape returned from 'detect_frame': {frame_image.shape}")
         # Call the detect_counter method
         counter_plot, counter_image, detected_thumbnail = meter_reader.detect_counter(frame_image)
     
     if counter_image is None:
-        log_message(f"No counter detected on image {image_path}")
+        logger.log_message(f"No counter detected on image {image_path}")
         digits_plot = None
         digits_int = 0
         digits_str = ""
     else:
-        log_message(f"Counter Shape returned from 'detect_counter': {counter_image.shape}")
+        logger.log_message(f"Counter Shape returned from 'detect_counter': {counter_image.shape}")
         # Call the detect_digits method
         digits_plot, digits_str, digits_int = meter_reader.detect_digits(counter_image)
     
     if digits_int != 0:
-        log_message(f"Detected Meter Value: {digits_int}", logging.DEBUG)
+        logger.log_message(f"Detected Meter Value: {digits_int}", logging.DEBUG)
     else:
         digits_int = 0
         digits_str = ""
-        log_message(f"No Digits Value found")
+        logger.log_message(f"No Digits Value found")
 
     # Store image metadata and intermediate files in MongoDB
 
@@ -124,7 +131,7 @@ async def process_image(image_path):
         "detected_thumbnail": detected_thumbnail,
         "processed_at": datetime.now(tz=timezone.utc).isoformat()  # Add UTC timestamp  
             }
-    log_message(f"Image Data Stored in MongoDB {file_name_image}: Value: {digits_int}", logging.DEBUG)
+    logger.log_message(f"Image Data Stored in MongoDB {file_name_image}: Value: {digits_int}", logging.DEBUG)
     db_handler.update_image_metadata(file_name_image, image_metadata)
 
     return file_name_image, digits_int
@@ -138,26 +145,26 @@ async def process_image(image_path):
 async def handle_file_upload():
     """Handles file upload request."""
     try:
-        log_message("Inside Handle file Upload")
+        logger.log_message("Inside Handle file Upload")
         uploaded_file = await request.files
-        log_message(f"Request files: {uploaded_file}", logging.INFO)
+        logger.log_message(f"Request files: {uploaded_file}", logging.INFO)
 
         img_list = list(uploaded_file.keys())
         if not img_list:
-            log_message("No files found in the request", logging.ERROR)
+            logger.log_message("No files found in the request", logging.ERROR)
             return Response(status=400, json={"error": "No file uploaded"})
 
         file = uploaded_file[img_list[0]]
-        log_message(f"Processing file: {file.filename}, MIME type: {file.content_type}", logging.INFO)
+        logger.log_message(f"Processing file: {file.filename}, MIME type: {file.content_type}", logging.INFO)
 
         if not file:
-            log_message("No file uploaded", logging.ERROR)
+            logger.log_message("No file uploaded", logging.ERROR)
             return Response(status=400, json={"error": "No file uploaded"})
 
         # Verify file content
         file_content = file.read()
         if not file_content:
-            log_message("File content is empty", logging.ERROR)
+            logger.log_message("File content is empty", logging.ERROR)
             return Response(status=400, json={"error": "File content is empty"})
 
         try:
@@ -165,9 +172,9 @@ async def handle_file_upload():
             filepath = os.path.join(static_folder_path, filename)  # Ensure proper path handling
             file.seek(0)  # Reset file pointer before saving
             await file.save(filepath)
-            log_message(f"File {filename} uploaded to {static_folder_path}", logging.INFO)
+            logger.log_message(f"File {filename} uploaded to {static_folder_path}", logging.INFO)
         except Exception as ex:
-            log_message(f"Error saving file: {ex}", logging.ERROR)
+            logger.log_message(f"Error saving file: {ex}", logging.ERROR)
             return jsonify({"error:":  "Failed to save file"}), 500
 
         # Process the image (this now handles MongoDB interaction)
@@ -175,7 +182,7 @@ async def handle_file_upload():
 
         return jsonify({"message": f"File received: {file_name_image} - Value {detected_number}"})
     except Exception as ex:
-        log_message(f"Error uploading file: {ex}", logging.ERROR)
+        logger.log_message(f"Error uploading file: {ex}", logging.ERROR)
         return jsonify({"error": str(ex)}), 400
     
 
@@ -197,7 +204,7 @@ def download_file(filename):  # Removed async
         else:
             abort(404)  # Image not found
     except Exception as ex:
-        log_message(f"Error downloading file: {ex}", logging.ERROR)
+        logger.log_message(f"Error downloading file: {ex}", logging.ERROR)
         abort(500)
        
 
@@ -218,7 +225,7 @@ async def get_image(filename):
     except FileNotFoundError:
         return abort(404)  # Image not found
     except Exception as ex:
-        log_message(f"Error retrieving image: {ex}", logging.ERROR)
+        logger.log_message(f"Error retrieving image: {ex}", logging.ERROR)
         return abort(500)
 
 @app.route("/metadata", methods=["GET"])
@@ -226,10 +233,10 @@ async def get_metadata():
     """Fetch metadata grouped by filename."""
     try:
         grouped_metadata = db_handler.get_grouped_metadata(limit=16)
-        log_message(f"/metadata: Number of items returned from get_grouped_metadata: {len(grouped_metadata)}")
+        logger.log_message(f"/metadata: Number of items returned from get_grouped_metadata: {len(grouped_metadata)}")
         return jsonify(grouped_metadata)
     except Exception as ex:
-        log_message(f"Error in /metadata route: {ex}", logging.ERROR)
+        logger.log_message(f"Error in /metadata route: {ex}", logging.ERROR)
         return jsonify({"error": str(ex)}), 500
 
 @app.route("/prune_db", methods=["POST"])
@@ -243,7 +250,7 @@ async def prune_db():
             "deleted_files_count": result["deleted_files_count"]
         })
     except Exception as ex:
-        log_message(f"Error in /prune_db route: {ex}", logging.ERROR)
+        logger.log_message(f"Error in /prune_db route: {ex}", logging.ERROR)
         return jsonify({"error": str(ex)}), 500
 
 @app.route("/")
@@ -254,7 +261,7 @@ async def info():
 
     # Fetch the latest 16 image metadata entries from MongoDB
     grouped_metadata = db_handler.get_grouped_metadata(limit=16)
-    log_message(f"Before rendering: Number of items found in MongoDB: {len(grouped_metadata)}", logging.DEBUG)
+    logger.log_message(f"Before rendering: Number of items found in MongoDB: {len(grouped_metadata)}", logging.DEBUG)
     # print(json.dumps(item_list, indent=4, sort_keys=True))
 
     return await render_template("index.html", item_list=grouped_metadata, ws_url=ws_url)
@@ -263,7 +270,7 @@ async def info():
 @app.route('/shutdown', methods=['POST'])
 async def shutdown():
     """Send a shutdown response to the client."""
-    log_message("Shutdown request received. Not exiting yet.")
+    logger.log_message("Shutdown request received. Not exiting yet.")
     response = jsonify({"message": "Server is ready to shut down."})
     response.status_code = 200
     return response  # Ensure the response is fully sent
@@ -271,7 +278,7 @@ async def shutdown():
 @app.route('/force_exit', methods=['POST'])
 async def force_exit():
     """Immediately terminate the server."""
-    log_message("Force exit request received. Terminating server.")
+    logger.log_message("Force exit request received. Terminating server.")
     os._exit(0)  # Hard exit
 
 
@@ -281,17 +288,17 @@ clients = set()
 @app.websocket('/ws')
 async def ws():
     """WebSocket handler to manage client connections."""
-    log_message("Adding a WebSocket client...")
+    logger.log_message("Adding a WebSocket client...")
     clients.add(websocket)  # Add the current WebSocket connection
     try:
         while True:
             await websocket.receive()  # Keep the connection alive
     except Exception as ex:
-        log_message(f"WebSocket error: {ex}", logging.WARNING)
+        logger.log_message(f"WebSocket error: {ex}", logging.WARNING)
     finally:
         # Remove the WebSocket connection from the set when it disconnects
         clients.discard(websocket)
-        log_message("WebSocket client removed.")
+        logger.log_message("WebSocket client removed.")
 
 
 # Error handling
@@ -301,8 +308,8 @@ def handle_not_found(error):
 
 
 if __name__ == "__main__":
-    log_message(f"Starting Application: Current working directory is: {os.getcwd()}", logging.INFO)
-    log_message(f"Static files are located in: {static_folder_path}", logging.INFO)
+    logger.log_message(f"Starting Application: Current working directory is: {os.getcwd()}", logging.INFO)
+    logger.log_message(f"Static files are located in: {static_folder_path}", logging.INFO)
 
     # Run the Quart app with the shutdown trigger
-    app.run(port=8099, host='0.0.0.0')
+    app.run(port=8098, host='0.0.0.0')
