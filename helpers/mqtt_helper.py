@@ -108,8 +108,8 @@ class HomeAssistant_MQTT:
         json_payload_str = json.dumps(data)
 
         topic = f"{self.mqtt_topic}/{device_id}/state"
-        self.client.publish(topic, payload=json_payload_str)
-
+        ret_val = self.client.publish(topic, payload=json_payload_str)
+        logger.debug(f"Publish to MQTT Returned: {ret_val}")
         logger.info(f"Published: {json_payload_str} to topic: {topic}")
 
 

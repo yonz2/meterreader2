@@ -32,7 +32,6 @@ class MeterReader:
         """
 
         self.config = config
-        self.logger = logger
 
         # Determine the device: Apple Silicon or default defined in config.yaml
         self.device = config.get('YOLO', 'device')
@@ -69,7 +68,7 @@ class MeterReader:
         Returns:
             tuple: Annotated image with bounding boxes, cropped frame image.
         """
-        image = predict_helpers.load_image(image_path, self.logger)
+        image = predict_helpers.load_image(image_path)
         logger.debug(f"Processing image: {image_path}, Shape: {image.shape}")
 
         results = self.model_frame(
@@ -105,11 +104,11 @@ class MeterReader:
             x1, y1, x2, y2 = map(int, box.tolist())
             counter_image = frame_image[y1:y2, x1:x2].copy()
 
-            rotation_angle = predict_helpers.determine_rotation_angle(counter_image, self.logger, horizontal_threshold=0.1)
-            rotated_image = predict_helpers.rotate_image(counter_image, rotation_angle, self.logger)
-            binary_image = predict_helpers.convert_to_binary(rotated_image, self.logger, invert=True, bgr=True)
+            rotation_angle = predict_helpers.determine_rotation_angle(counter_image, horizontal_threshold=0.1)
+            rotated_image = predict_helpers.rotate_image(counter_image, rotation_angle)
+            binary_image = predict_helpers.convert_to_binary(rotated_image, invert=True, bgr=True)
             # plot_image(binary_image, "Binary Image will be passed to Dgits Detection")
-            detected_thumbnail = predict_helpers.generate_thumbnail(counter_image, self.logger)
+            detected_thumbnail = predict_helpers.generate_thumbnail(counter_image)
             return results[0].plot(), binary_image, detected_thumbnail
         else:
             return None, None, None
@@ -136,7 +135,7 @@ class MeterReader:
         )
 
         if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
-            predict_helpers.plot_image(results[0].plot(), self.logger, title="Detected Digits", bgr=True)
+            predict_helpers.plot_image(results[0].plot(),title="Detected Digits", bgr=True)
             boxes = results[0].boxes.xyxy.tolist()  # Convert to list for easier iteration
             class_ids = results[0].boxes.cls.tolist()
             names = results[0].names
@@ -230,7 +229,7 @@ def main():
     config_instance = config.ConfigLoader("config.yaml")
 
     # Note: All configuration parameters are stored in config.yaml
-    meter_reader = MeterReader(config_instance, logger)
+    meter_reader = MeterReader(config_instance)
     image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
     
     meter_value = meter_reader.predict_image(image_test_path)

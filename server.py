@@ -17,7 +17,7 @@ import sys
 
 from werkzeug.utils import secure_filename
 
-from predicter.predicter import MeterReader
+from predicter.predictions import MeterReader
 
 from helpers.monogodb_handler import MongoDBHandler
 
@@ -55,6 +55,11 @@ app = Quart(__name__,
             static_folder='static',
             template_folder='templates')
 app.config['MAX_CONTENT_LENGTH'] = 10*1024*1024 # 10MB
+
+# Assign the custom logger to the Quart app
+app.logger = logger
+
+
 
 # Set static folder path
 static_folder_path = f"{app.static_folder}/"
@@ -98,6 +103,12 @@ async def process_image(image_path):
     
     if digits_int != 0:
         logger.debug(f"Detected Meter Value: {digits_int}")
+        #
+        # This is the key statement in the whole application...
+        # Send a value to Home Assistant
+        ha_mqtt.send_value("electricity_meter", float(digits_int))
+        #
+        #
     else:
         digits_int = 0
         digits_str = ""
@@ -137,9 +148,6 @@ async def process_image(image_path):
             }
     logger.debug(f"Image Data Stored in MongoDB {file_name_image}: Value: {digits_int}")
     db_handler.update_image_metadata(file_name_image, image_metadata)
-
-    # Send a value to Home Assistant
-    ha_mqtt.send_value("electricity_meter", float(digits_int))
 
     return file_name_image, digits_int
 
@@ -269,7 +277,7 @@ async def info():
     # Fetch the latest 16 image metadata entries from MongoDB
     grouped_metadata = db_handler.get_grouped_metadata(limit=16)
     logger.debug(f"Before rendering: Number of items found in MongoDB: {len(grouped_metadata)}")
-    # print(json.dumps(item_list, indent=4, sort_keys=True))
+    # logger.debug(json.dumps(item_list, indent=4, sort_keys=True))
 
     return await render_template("index.html", item_list=grouped_metadata, ws_url=ws_url)
 

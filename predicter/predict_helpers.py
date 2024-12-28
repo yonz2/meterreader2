@@ -200,7 +200,7 @@ def scale_image(image, new_size=[640,640], orientation='portrait', pad_color = [
         logger.debug(f"Exiting Scaling function: Dtype={return_image.dtype}")
     return return_image
 
-def generate_thumbnail(image, logger, max_width=256):
+def generate_thumbnail(image, max_width=256):
     """
     Generates a base64-encoded thumbnail of the given image.
 
@@ -413,7 +413,7 @@ def main():
     config_instance = config.ConfigLoader("config.yaml")
 
     image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
-    image = load_image(image_test_path, logger)
+    image = load_image(image_test_path)
     if image is not None:
         print(f"Original Image shape: {image.shape}")
     else:
@@ -422,19 +422,19 @@ def main():
 
     # Attemt to rotate the image so that the horizontal lines are straight,
     # then padd that image to a fixed site, for use in a second model
-    rotation_angle = determine_rotation_angle(image, logger, horizontal_threshold=0.1)          
-    image_rotated = rotate_image(image, rotation_angle, logger)
-    plot_image( image_rotated, logger)
+    rotation_angle = determine_rotation_angle(image, horizontal_threshold=0.1)          
+    image_rotated = rotate_image(image, rotation_angle)
+    plot_image( image_rotated)
 
     # Scale the image
-    scaled_image = scale_image(image_rotated,logger, new_size=[192,768], orientation='landscape', pad_color=[255,255,255]  )
-    print(f"Scaled Image shape: {scaled_image.shape}\nRottion Angle: {rotation_angle}")
-    plot_image( scaled_image, logger)
+    scaled_image = scale_image(image_rotated, new_size=[192,768], orientation='landscape', pad_color=[255,255,255]  )
+    logger.debug(f"Scaled Image shape: {scaled_image.shape}\nRottion Angle: {rotation_angle}")
+    plot_image( scaled_image)
 
     # Convert to Binary (inverse)
 
-    binary_image = convert_to_binary(scaled_image, logger, invert=True)
-    plot_image( binary_image, logger)
+    binary_image = convert_to_binary(scaled_image, invert=True)
+    plot_image( binary_image )
 
     return 0
 
