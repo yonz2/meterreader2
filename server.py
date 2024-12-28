@@ -21,6 +21,7 @@ from predicter.predicter import MeterReader
 
 from helpers.monogodb_handler import MongoDBHandler
 
+from helpers.mqtt_helper import HomeAssistant_MQTT
 
 # Load environment variables if running locally
 load_dotenv()
@@ -43,6 +44,9 @@ logger = custom_logger.CustomLogger(logger_name="MeterReader")
 # Initialize db handler and ImageProcessor (Load models)
 db_handler = MongoDBHandler(config_instance, logger) # connects to the Mongo Database
 meter_reader = MeterReader(config_instance, logger) # Loads the model used for predictions
+
+# Create an instance of the HomeAssistant_MQTT class
+ha_mqtt = HomeAssistant_MQTT(config_instance, logger) 
 
 
 # Create the Quart application object
@@ -134,6 +138,9 @@ async def process_image(image_path):
     logger.log_message(f"Image Data Stored in MongoDB {file_name_image}: Value: {digits_int}", logging.DEBUG)
     db_handler.update_image_metadata(file_name_image, image_metadata)
 
+    # Send a value to Home Assistant
+    ha_mqtt.send_value("electricity_meter", float(digits_int))
+
     return file_name_image, digits_int
 
 
@@ -180,7 +187,7 @@ async def handle_file_upload():
         # Process the image (this now handles MongoDB interaction)
         file_name_image, detected_number = await process_image(filepath)
 
-        return jsonify({"message": f"File received: {file_name_image} - Value {detected_number}"})
+        return jsonify({"message": f"File received: {file_name_image} - Value {detected_number}"}), 200
     except Exception as ex:
         logger.log_message(f"Error uploading file: {ex}", logging.ERROR)
         return jsonify({"error": str(ex)}), 400

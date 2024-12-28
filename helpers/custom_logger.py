@@ -33,17 +33,24 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 class CustomLogger:
-    def __init__(self, logger_name=None, log_file=None, log_level=logging.DEBUG, max_log_size=0.5 * 1024 * 1024, backup_count=5):
+    def __init__(self, logger_name=None, log_file=None, log_level=None, max_log_size=0.5 * 1024 * 1024, backup_count=5):
         """
         Initializes the custom logger.
 
         Args:
             logger_name (str, optional): Name of the logger. Defaults to the filename.
             log_file (str, optional): Path to the log file. Defaults to './log/{logger_name}.log'.
-            log_level (int, optional): Logging level. Defaults to logging.DEBUG.
+            log_level (int, optional): Logging level. Defaults to value set in ENV variable
             max_log_size (int, optional): Maximum size of the log file in bytes. Defaults to 0.5 MB.
             backup_count (int, optional): Number of backup log files to keep. Defaults to 5.
         """
+
+        if not log_level: # log level passed as paramter has priority
+            self.log_level_env = os.environ.get("LOG_LEVEL") # Get the Log level from the ENV Variable
+            if self.log_level_env in list(logging.getLevelNamesMapping()): # Check for allowed values
+                log_level = logging.getLevelNamesMapping()[self.log_level_env]
+            else:
+                log_level = logging.debug # If not correct, default to DEBUG
 
         self.logger_name = logger_name or os.path.splitext(os.path.basename(__file__))[0]
         self.log_file = log_file or f"./log/{self.logger_name}.log"
@@ -91,14 +98,17 @@ class CustomLogger:
 
         self.logger.addHandler(console_handler)
         self.logger.addHandler(file_handler)
+        self.logger.log(self.log_level, f"--------- Logging started --------- Log-Level: {logging.getLevelName(self.log_level)}")
 
-    def log_message(self, message, log_level=logging.DEBUG):
+    def log_message(self, message, log_level=None):
         """
         Logs a message with the specified log level.
 
         Args:
             message (str): The message to log.
-            log_level (int, optional): The log level. Defaults to logging.DEBUG.
+            log_level (int, optional): The log level. Defaults to self.log_level
         """
+        if not log_level:
+            log_level = self.log_level
         self.logger.log(log_level, message)
 #

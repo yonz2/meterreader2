@@ -25,10 +25,10 @@ import paho.mqtt.client as mqtt
 import helpers.custom_logger as custom_logger 
 import helpers.config as config 
 
-class homeassistant_mqtt:
+class HomeAssistant_MQTT:
     def __init__(self, config, logger, template_file="mqtt_config_template.json"):
         """
-        Initializes the homeassistant_mqtt class.
+        Initializes the HomeAssistant_MQTT class.
 
         Args:
             config_file (str): Path to the configuration file. Defaults to "config.json".
@@ -116,7 +116,7 @@ def main():
     logger = custom_logger.CustomLogger(logger_name="my_logger")
 
     # Create an instance of the class
-    ha_mqtt = homeassistant_mqtt(config_instance, logger) 
+    ha_mqtt = HomeAssistant_MQTT(config_instance, logger) 
 
     # # Create a new device configuration
     ha_mqtt.new_device_config("my_meter")  
