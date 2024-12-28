@@ -16,17 +16,24 @@
 #   https://www.home-assistant.io/integrations/sensor.mqtt/
 #   https://www.home-assistant.io/integrations/mqtt/#sensors
 #
+import os
 import json
 import yaml
 import time
 import paho.mqtt.client as mqtt
 
 # Import your custom modules
-import helpers.custom_logger as custom_logger 
 import helpers.config as config 
 
+# Make sure to use the same logger as therest of hte application
+import logging
+logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
+logger = logging.getLogger(logger_name)
+
+
+
 class HomeAssistant_MQTT:
-    def __init__(self, config, logger, template_file="mqtt_config_template.json"):
+    def __init__(self, config, template_file="mqtt_config_template.json"):
         """
         Initializes the HomeAssistant_MQTT class.
 
@@ -36,7 +43,7 @@ class HomeAssistant_MQTT:
         """
         self.config = config
         self.template_file = template_file
-        self.logger = logger
+
 
         self.mqtt_broker = self.config.get('MQTT', 'broker')
         self.mqtt_port = self.config.get('MQTT', 'port')
@@ -70,7 +77,7 @@ class HomeAssistant_MQTT:
         for key, payload in reversed(templates.items()):
             config_topic = f"{self.mqtt_topic}/{new_device_id}/{key}/config"
             self.client.publish(config_topic, payload=None, retain=True)
-            self.logger.log_message(f"Published: '<<None>>' to topic: {config_topic}")
+            logger.info(f"Published: '<<None>>' to topic: {config_topic}")
             time.sleep(3)
 
         for key, payload in templates.items():
@@ -80,7 +87,7 @@ class HomeAssistant_MQTT:
             config_topic = f"{self.mqtt_topic}/{new_device_id}/{key}/config"
             payload_str = json.dumps(payload)
             self.client.publish(config_topic, payload=payload_str, retain=True)
-            self.logger.log_message(f"Published: {json.dumps(payload)} to topic: {config_topic}")
+            logger.info(f"Published: {json.dumps(payload)} to topic: {config_topic}")
             time.sleep(5)
 
     def send_value(self, device_id, value):
@@ -103,7 +110,7 @@ class HomeAssistant_MQTT:
         topic = f"{self.mqtt_topic}/{device_id}/state"
         self.client.publish(topic, payload=json_payload_str)
 
-        self.logger.log_message(f"Published: {json_payload_str} to topic: {topic}")
+        logger.info(f"Published: {json_payload_str} to topic: {topic}")
 
 
 def main():
@@ -111,9 +118,6 @@ def main():
 
     # Create a Config object
     config_instance = config.ConfigLoader("config.yaml")
-
-    # Create a CustomLogger object
-    logger = custom_logger.CustomLogger(logger_name="my_logger")
 
     # Create an instance of the class
     ha_mqtt = HomeAssistant_MQTT(config_instance, logger) 

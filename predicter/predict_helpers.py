@@ -15,17 +15,20 @@ import cv2
 import os
 import math
 import base64
+import yaml
 from dotenv import load_dotenv
 import numpy as np
 from matplotlib import pyplot as plt
-
 from IPython import get_ipython
-# In your main application file or any other file where you need these modules
-from helpers import custom_logger
-from helpers import config as config
-import logging
 
-import yaml
+from helpers import config as config
+
+
+# Make sure to use the same logger as therest of hte application
+import logging
+logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
+logger = logging.getLogger(logger_name)
+
 
 def is_running_in_jupyter():
     """Checks if the code is running in a Jupyter Notebook."""
@@ -38,7 +41,7 @@ def is_running_in_jupyter():
     except NameError:  # `get_ipython` not defined
         return False
 
-def load_image(filepath, logger):
+def load_image(filepath):
     """Loads an image from a given file path, with error handling.
 
     Args:
@@ -48,24 +51,24 @@ def load_image(filepath, logger):
         image: Loaded image object or None if loading fails.
     """
     if not os.path.exists(filepath):
-        logger.log_message(f"Error: File {filepath} does not exist.")
+        logger.error(f"File {filepath} does not exist.")
         return None
     elif not os.path.isfile(filepath):
-        logger.log_message(f"Error: {filepath} is not a file.")
+        logger.error(f"Path: {filepath} is not a file.")
         return None
     elif not os.access(filepath, os.R_OK):
-        logger.log_message(f"Error: File {filepath} is not readable.")
+        logger.error(f"File {filepath} is not readable.")
         return None
 
     try:
         img = cv2.imread(filepath)
         return img
     except Exception as e:
-        logger.log_message(f"Error: An exception occurred while loading the image. {e}")
+        logger.error(f"Error: An exception occurred while loading the image. {e}")
         return None
 
 
-def save_image(image, path, logger):
+def save_image(image, path):
     """Saves an image to a specified file path, with checks for writeability.
 
     Args:
@@ -81,23 +84,23 @@ def save_image(image, path, logger):
         try:
             os.makedirs(directory)
         except OSError:
-            logger.log_message(f"Error: Unable to create directory {directory}.")
+            logger.error(f"Error: Unable to create directory {directory}.")
             return False
     elif not os.access(directory, os.W_OK):
-        logger.log_message(f"Error: The directory {directory} is not writable.")
+        logger.error(f"Error: The directory {directory} is not writable.")
         return False
 
     # Attempt to save the image
     try:
         cv2.imwrite(path, image)
     except Exception as e:
-        logger.log_message(f"Error: Unable to save the image to {path}. {e}")
+        logger.error(f"Error: Unable to save the image to {path}. {e}")
         return False
 
     return True
 
 
-def scale_image(image, logger, new_size=[640,640], orientation='portrait', pad_color = []):
+def scale_image(image, new_size=[640,640], orientation='portrait', pad_color = []):
     """Scales an image to a specified maximum height, ensuring the output dimensions 
     are multiples of 32 by cropping if necessary.
 
@@ -194,7 +197,7 @@ def scale_image(image, logger, new_size=[640,640], orientation='portrait', pad_c
             return_image = np.hstack((return_image, right_border_image))  # Add right border
 
         return_image = return_image.astype(np.uint8)  # Convert to uint8
-        logger.log_message(f"Exiting Scaling function: Dtype={return_image.dtype}")
+        logger.debug(f"Exiting Scaling function: Dtype={return_image.dtype}")
     return return_image
 
 def generate_thumbnail(image, logger, max_width=256):
@@ -233,10 +236,10 @@ def generate_thumbnail(image, logger, max_width=256):
 
     except Exception as ex:
         # Log the error (optional) and return an empty string
-        logger.log_message(f"Error generating thumbnail: {ex}", logging.ERROR)
+        logger.error(f"Error generating thumbnail: {ex}")
         return ""
 
-def convert_to_grayscale(image, logger):
+def convert_to_grayscale(image):
     """Converts the image passed to the funczion to Grayscale
 
     Args:
@@ -245,7 +248,7 @@ def convert_to_grayscale(image, logger):
     """
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-def convert_to_binary(image, logger, bgr=False, invert=False):
+def convert_to_binary(image, bgr=False, invert=False):
     """Converts the image to binary.
 
     Args:
@@ -272,7 +275,7 @@ def convert_to_binary(image, logger, bgr=False, invert=False):
     return image_binary
 
 
-def rotate_image(img, rotation_degrees, logger):
+def rotate_image(img, rotation_degrees):
     """Rotates an image by the specified degrees.
 
     Args:
@@ -298,12 +301,12 @@ def rotate_image(img, rotation_degrees, logger):
         img_rotated = img_rotated.astype(np.uint8)  
 
     except Exception as e:
-       logger.log_message(f"Error when trying to rotate image: {e}")
+        logger.error(f"Error when trying to rotate image: {e}")
 
     return img_rotated
 
 
-def determine_rotation_angle(img, logger, horizontal_threshold=0.1):
+def determine_rotation_angle(img, horizontal_threshold=0.1):
     """Determines the angle to rotate an image to straighten it, considering only horizontal lines.
 
     Args:
@@ -331,7 +334,7 @@ def determine_rotation_angle(img, logger, horizontal_threshold=0.1):
             img_gray = img
 
     except AttributeError as e:
-        logger.log_message(f"Error processing image: {e}")
+        logger.error(f"Error processing image: {e}")
         return 0
         # Add more specific handling if needed (e.g., logging, skipping)
 
@@ -363,7 +366,7 @@ def determine_rotation_angle(img, logger, horizontal_threshold=0.1):
     return median_angle
 
 
-def plot_image(image, logger, title="Image", cmap=None, bgr=False, axis="on"):
+def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
     """
     Plots an image using Matplotlib, handling color conversions and different image types.
 
@@ -408,9 +411,6 @@ def main():
 
     # Create a Config object
     config_instance = config.ConfigLoader("config.yaml")
-
-    # Create a CustomLogger object
-    logger = custom_logger.CustomLogger(logger_name="predict_helper_standalone")
 
     image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
     image = load_image(image_test_path, logger)

@@ -8,9 +8,14 @@ from dotenv import load_dotenv
 from predicter import predict_helpers
 
 # In your main application file or any other file where you need these modules
-from helpers import custom_logger as custom_logger
 from helpers import config as config
+
+
+# Make sure to use the same logger as therest of hte application
 import logging
+logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
+logger = logging.getLogger(logger_name)
+
 
 class MeterReader:
     """
@@ -18,7 +23,7 @@ class MeterReader:
     counter, and digits on an electricity meter.
     """
 
-    def __init__(self, config, logger, project_path=""):
+    def __init__(self, config, project_path=""):
         """
         Initializes the MeterReader class, loads YOLO models, and determines the device.
         
@@ -48,11 +53,11 @@ class MeterReader:
         }
 
         # Load models
-        # print(f"Loading models... from:\n{weights_path}\n")
+        logger.debug(f"Loading models... from:\n{self.weights_path}\n")
         self.model_frame = YOLO(self.model_paths["frame"])
         self.model_counter = YOLO(self.model_paths["counter"])
         self.model_digits = YOLO(self.model_paths["digits"])
-        self.logger.log_message(f"Models loaded successfully! - {self.weights}")
+        logger.info(f"Models loaded successfully! - {self.weights}")
 
     def detect_frame(self, image_path):
         """
@@ -65,7 +70,7 @@ class MeterReader:
             tuple: Annotated image with bounding boxes, cropped frame image.
         """
         image = predict_helpers.load_image(image_path, self.logger)
-        self.logger.log_message(f"Processing image: {image_path}, Shape: {image.shape}")
+        logger.debug(f"Processing image: {image_path}, Shape: {image.shape}")
 
         results = self.model_frame(
             image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
@@ -146,7 +151,7 @@ class MeterReader:
 
                 if h > w and area >= 200:
                     valid_boxes.append((i,x1, y1, x2, y2))
-                    # print(f"Valid Box found: Class {names[int(class_ids[i])]}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, w={w}, h={h}, area={area}")
+                    # logger.debug(f"Valid Box found: Class {names[int(class_ids[i])]}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, w={w}, h={h}, area={area}")
             
             if valid_boxes:
                 # Sort valid boxes by x1 (reading order)
@@ -159,25 +164,25 @@ class MeterReader:
                     digit_value = digit_name_map.get(digit_name) # Get the digit value from the map
                     if digit_value is not None:
                         meter_value_str += digit_value
-                        # print(f"Valid box label: #{digitNo+1} (x1={x1}): {digit_name} -> {digit_value}")
+                        # logger.debug(f"Valid box label: #{digitNo+1} (x1={x1}): {digit_name} -> {digit_value}")
                     else:
-                        # print(f"Warning: Digit name '{digit_name}' not found in lookup table.")
+                        # logger.debug(f"Warning: Digit name '{digit_name}' not found in lookup table.")
                         meter_value_str = None # Reset meter value since a digit could not be identified.
                         break # Stop processing since the meter value is now invalid
 
                 if meter_value_str is not None: # Only convert to int if all digits could be identified.
-                    # print(f"Meter Value (str): {meter_value_str}")
+                    logger.debug(f"Meter Value (str): {meter_value_str}")
                     try:
                         meter_value_int = int(meter_value_str)
-                        # print(f"Meter Value (int): {meter_value_int}")
+                        # logger.debug(f"Meter Value (int): {meter_value_int}")
                     except ValueError:
-                        self.logger.log_message(f"Could not convert Meter Value ({meter_value_str}) to int")
+                        logger.error(f"Could not convert Meter Value ({meter_value_str}) to int")
 
 
             else:
-                self.logger.log_message("No valid boxes found matching the criteria.")
+                logger.warning("No valid boxes found matching the criteria.")
         else:
-            self.logger.log_message("No digits detected.")
+            logger.warning("No digits detected.")
 
         return results[0].plot(), meter_value_str, meter_value_int
     
@@ -196,24 +201,24 @@ class MeterReader:
         frame_plot, frame_image = self.detect_frame(image_path)
         
         if frame_image is None:
-            self.logger.log_message("No frame detected.")
+            logger.debug("No frame detected.")
             return None
         
         # Call the detect_counter method
         counter_plot, counter_image, thumbnail_image = self.detect_counter(frame_image)
         
         if counter_image is None:
-            self.logger.log_message("No counter detected.")
+            logger.debug("No counter detected.")
             return None
         
         # Call the detect_digits method
         digits_plot, digits_str, digits_int = self.detect_digits(counter_image)
         
         if digits_int is not None:
-            self.logger.log_message(f"Detected Meter Value: {digits_int}")
+            logger.debug(f"Detected Meter Value: {digits_int}")
             return digits_int
         else:
-            print("No digits detected.")
+            logger.debug("No digits detected.")
             return None
 
 def main():
@@ -224,14 +229,10 @@ def main():
     # Create a Config object
     config_instance = config.ConfigLoader("config.yaml")
 
-    # Create a CustomLogger object
-    logger = custom_logger.CustomLogger(logger_name="Predicter_standalone")
-
     # Note: All configuration parameters are stored in config.yaml
     meter_reader = MeterReader(config_instance, logger)
     image_test_path = "/home/yonz/workspace/MeterImages/original/IMG_7004.jpg"
     
-
     meter_value = meter_reader.predict_image(image_test_path)
 
     print(f"Image: {image_test_path}\nFinal Meter Value: {meter_value}")

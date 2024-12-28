@@ -1,114 +1,57 @@
-# custom_logger-py
-# (c) 2024 yonz
-# License: Unlicense
-
-""" 
-Class-based Structure: The logger is now encapsulated in a CustomLogger class, making it more organized and easier to use with dependency injection.
-Constructor (__init__):
-    Takes optional arguments for logger_name, log_file, log_level, max_log_size, and backup_count to customize the logger's behavior.
-    Sets sensible defaults for these parameters.
-    Calls the _setup_logger method to initialize the logger.
-_setup_logger Method:
-    This method encapsulates the logger setup logic, making the code cleaner.
-    Creates the logger, sets the log level, and configures the formatters and handlers.
-    Includes a check to see if the LOG_DIR environment variable is set, providing flexibility for different deployment environments.
-    Ensures the log directory exists using os.makedirs(..., exist_ok=True).
-log_message Method:
-    This method provides a simple interface for logging messages.
-    Takes the message and an optional log_level as arguments.
-
-    Usage:
-    logger = CustomLogger(
-        logger_name="my_app_logger", 
-        log_file="./logs/my_app.log", 
-        log_level=logging.INFO 
-    )
-    
-
- """
-
 import os
-import getpass
 import logging
 from logging.handlers import RotatingFileHandler
 
-class CustomLogger:
-    def __init__(self, logger_name=None, log_file=None, log_level=None, max_log_size=0.5 * 1024 * 1024, backup_count=5):
-        """
-        Initializes the custom logger.
+def setup_logging(logger_name=None, log_file=None, log_level=None, max_log_size=0.5 * 1024 * 1024, backup_count=5):
+    """
+    Sets up the standard Python logger.
 
-        Args:
-            logger_name (str, optional): Name of the logger. Defaults to the filename.
-            log_file (str, optional): Path to the log file. Defaults to './log/{logger_name}.log'.
-            log_level (int, optional): Logging level. Defaults to value set in ENV variable
-            max_log_size (int, optional): Maximum size of the log file in bytes. Defaults to 0.5 MB.
-            backup_count (int, optional): Number of backup log files to keep. Defaults to 5.
-        """
+    Args:
+        logger_name (str, optional): Name of the logger. Defaults to the filename.
+        log_file (str, optional): Path to the log file. Defaults to './log/{logger_name}.log'.
+        log_level (int, optional): Logging level. Defaults to value set in ENV variable, or DEBUG if not set.
+        max_log_size (int, optional): Maximum size of the log file in bytes. Defaults to 0.5 MB.
+        backup_count (int, optional): Number of backup log files to keep. Defaults to 5.
+    """
 
-        if not log_level: # log level passed as paramter has priority
-            self.log_level_env = os.environ.get("LOG_LEVEL") # Get the Log level from the ENV Variable
-            if self.log_level_env in list(logging.getLevelNamesMapping()): # Check for allowed values
-                log_level = logging.getLevelNamesMapping()[self.log_level_env]
-            else:
-                log_level = logging.debug # If not correct, default to DEBUG
+    if not log_level:
+        log_level_env = os.environ.get("LOG_LEVEL")
+        if log_level_env in list(logging.getLevelNamesMapping()):
+            log_level = logging.getLevelNamesMapping()[log_level_env]
+        else:
+            log_level = logging.DEBUG
 
-        self.logger_name = logger_name or os.path.splitext(os.path.basename(__file__))[0]
-        self.log_file = log_file or f"./log/{self.logger_name}.log"
-        self.log_level = log_level
-        self.max_log_size = int(max_log_size)
-        self.backup_count = backup_count
+    logger_name = logger_name or os.path.splitext(os.path.basename(__file__))[0]
+    log_file = log_file or f"./log/{logger_name}.log"
 
-        self._setup_logger()
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(log_level)
 
-    def _setup_logger(self):
-        """
-        Sets up the logger with console and file handlers.
-        """
+    # Formatter with filename and line number
+    formatter = logging.Formatter('%(asctime)s - %(filename)s:%(lineno)d - %(levelname)s - %(message)s')
 
-        self.logger = logging.getLogger(self.logger_name)
-        self.logger.setLevel(self.log_level)
-        self.logger.propagate = False
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.DEBUG)
 
-        formatter = logging.Formatter('%(asctime)s - MeterReader - %(levelname)s - %(message)s')
+    log_dir = os.environ.get("LOG_DIR")
+    if log_dir and os.path.isdir(log_dir):
+        log_file = os.path.join(log_dir, f"{logger_name}.log")
 
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(logging.DEBUG)  # Keep console at DEBUG for detailed output
+    # Ensure log file exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    open(log_file, 'a').close()
 
-        log_dir = os.environ.get("LOG_DIR")
-        if log_dir and os.path.isdir(log_dir):
-            self.log_file = os.path.join(log_dir, f"{self.logger_name}.log")
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=int(max_log_size),
+        backupCount=backup_count
+    )
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
 
-        print(f"Log file: {self.log_file}. "
-              f"Current Working Directory is: {os.getcwd()}, "
-              f"Logged-in user is: {getpass.getuser()} "
-              f"({os.getresuid()} | {os.getresgid()})")
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    logger.log(log_level, f"--------- Logging started --------- Log-Level: {logging.getLevelName(log_level)}")
 
-        # Ensure log file exists
-        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
-        open(self.log_file, 'a').close()
-
-        file_handler = RotatingFileHandler(
-            self.log_file, 
-            maxBytes=self.max_log_size, 
-            backupCount=self.backup_count
-        )
-        file_handler.setLevel(self.log_level)
-        file_handler.setFormatter(formatter)
-
-        self.logger.addHandler(console_handler)
-        self.logger.addHandler(file_handler)
-        self.logger.log(self.log_level, f"--------- Logging started --------- Log-Level: {logging.getLevelName(self.log_level)}")
-
-    def log_message(self, message, log_level=None):
-        """
-        Logs a message with the specified log level.
-
-        Args:
-            message (str): The message to log.
-            log_level (int, optional): The log level. Defaults to self.log_level
-        """
-        if not log_level:
-            log_level = self.log_level
-        self.logger.log(log_level, message)
-#
+    return logger

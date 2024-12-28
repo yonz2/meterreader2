@@ -17,6 +17,8 @@ services:
       QUART_ENV: development
       QUART_DEBUG: 1
       LOG_DIR: /usr/src/app/log
+      LOG_LEVEL: DEBUG
+      LOGGER_NAME: MeterReader
       CONFIG_FILE: "/usr/src/app/config.yaml"
     volumes: 
       - /var/data/meterreader/log:/usr/src/app/log
