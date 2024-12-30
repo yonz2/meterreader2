@@ -1,0 +1,30 @@
+# MQTT Configuration Template (YAML)
+
+name: "{{ device_name }}"
+state_topic: "{{ main_topic }}/{{ device_name }}/state"
+unique_id: "{{ device_name }}_UID"
+object_id: "{{ device_name }}_OBJ"
+icon: "mdi:{{ icon | default('meter-electric') }}"  # Default icon
+availability_topic: "{{ main_topic }}/{{ device_name }}/{{ lwt_topic | default('status') }}"  # Default LWT topic
+device_class: "{{ device_class }}"
+
+state_class: "{{ state_class }}"
+friendly_name: "{{ device_name }}_FRIENDLY"
+unit_of_measurement: "{{ mes_unit }}"
+value_template: "{{ '{{' }} value_json.value {{ '}}' }}"
+{% if entity_category %} entity_category: "{{ entity_category }}" {% endif %}
+#
+# The followng is only needed once per device. If there are multiple states or attributes being defined, 
+# only send the "main_device" configuration once
+{% if main_device | default(False) %}
+device:
+  identifiers:
+    - "{{ device_name }}"
+  name: "{{ device_name }}"
+  manufacturer: "{{ manufacturer | default('4Pi') }}"  # Default manufacturer
+  model: "{{ model | default('4PI') }}"  # Default model
+  hw_version: "{{ hw_version | default('virtual_01') }}"  # Default hardware version
+  sw_version: "{{ sw_version | default('0.8.0') }}"  # Default software version
+  {% if config_url %} configuration_url: "{{ config_url }}" {% endif %}  # Default empty config URL
+{% endif %}
+  

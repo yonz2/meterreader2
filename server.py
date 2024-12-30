@@ -21,7 +21,7 @@ from predicter.predictions import MeterReader
 
 from helpers.monogodb_handler import MongoDBHandler
 
-from helpers.mqtt_helper import HomeAssistant_MQTT
+from helpers.mqtt_client import HomeAssistant_MQTT
 
 # Load environment variables if running locally
 load_dotenv()
