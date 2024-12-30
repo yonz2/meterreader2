@@ -21,7 +21,7 @@ from predicter.predictions import MeterReader
 
 from helpers.monogodb_handler import MongoDBHandler
 
-from helpers.mqtt_client import HomeAssistant_MQTT
+from helpers.mqtt_client import HomeAssistant_MQTT_Client
 
 # Load environment variables if running locally
 load_dotenv()
@@ -46,7 +46,7 @@ db_handler = MongoDBHandler(config_instance) # connects to the Mongo Database
 meter_reader = MeterReader(config_instance) # Loads the model used for predictions
 
 # Create an instance of the HomeAssistant_MQTT class
-ha_mqtt = HomeAssistant_MQTT(config_instance) 
+ha_mqtt = HomeAssistant_MQTT_Client(config_instance) 
 
 
 # Create the Quart application object
@@ -106,7 +106,8 @@ async def process_image(image_path):
         #
         # This is the key statement in the whole application...
         # Send a value to Home Assistant
-        ha_mqtt.send_value("electricity_meter", float(digits_int))
+        device_id = config_instance.get("HomeAssistant", "device_id")
+        ha_mqtt.send_value(device_id, float(digits_int))
         #
         #
     else:

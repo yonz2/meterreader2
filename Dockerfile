@@ -22,8 +22,11 @@ RUN adduser --disabled-password --gecos "" appuser
 # RUN adduser -u 1000 --disabled-password --gecos "" appuser
 
 # copy files to app directory
-COPY  *.py *.md *.yaml ./
+COPY  *.py *.md *.yaml .
+COPY predicter ./predicter
+COPY helpers ./helpers
 
+RUN ls -la ./*
 RUN chown -R appuser /usr/src/app
 
 USER appuser

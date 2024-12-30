@@ -50,6 +50,8 @@ YOLO:
     counter: "meter-counter.pt"
     digits:  "meter-digits.pt"
 
+HomeAssistant:
+  device_id: "my_meter"
 
 # --- MQTT ---
 MQTT:
@@ -58,42 +60,8 @@ MQTT:
   username: mqtt_user   # Your MQTT username
   password: Dokkan2025  # Your MQTT password
   topic: homeassistant/sensor  # The base topic for MQTT messages
-  tracked_devices:      # A list of devices to track
-    - electricity_meter # Add more devices as needed
   birth_topic:  homeassistant/status
   birth_payload: online
   will_topic: homeassistant/status
   will_payload: offline
-
-  # Template for Homeassitant device configuration (Device Discovery)
-  # See: https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery
-  # Note: use render-yaml.py script to render the device/sensor config using a pre-defined YMAL/JINJA2 template
-  devices:
-    my_meter:
-      name: "my_meter"
-      state_topic: "homeassistant/sensor/my_meter/state"
-      unique_id: "my_meter_UID"
-      object_id: "my_meter_OBJ"
-      icon: "mdi:meter-electric"  # Default icon
-      availability_topic: "homeassistant/sensor/my_meter/status"  # Default LWT topic
-      device_class: "energy"
-
-      state_class: "total_increasing"
-      friendly_name: "my_meter_FRIENDLY"
-      unit_of_measurement: "kWh"
-      value_template: "{{ value_json.value }}"
-
-      #
-      # The followng is only needed once per device. If there are multiple states or attributes being defined, 
-      # only send the "main_device" configuration once
-
-      device:
-        identifiers:
-          - "my_meter"
-        name: "my_meter"
-        manufacturer: "4Pi"  # Default manufacturer
-        model: "4PI"  # Default model
-        hw_version: "virtual_01"  # Default hardware version
-        sw_version: "0.8.0"  # Default software version
-          # Default empty config URL
-
+  qos: 1                # Quality of service. 0, 1, or 2

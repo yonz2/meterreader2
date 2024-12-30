@@ -33,7 +33,7 @@ logger = logging.getLogger(logger_name)
 # Import your custom modules
 import helpers.config as config
 
-class HomeAssistant_MQTT:
+class HomeAssistant_MQTT_Client:
     """
     MQTT client for interacting with Home Assistant.
 
@@ -66,9 +66,11 @@ class HomeAssistant_MQTT:
         self.mqtt_username = self.config.get('MQTT', 'username')
         self.mqtt_topic = self.config.get('MQTT', 'topic')
         self.mqtt_password = self.config.get('MQTT', 'password')
+        self.qos = int(self.config.get('MQTT', 'qos', default=1))
         self.birth_topic = self.config.get('MQTT', 'birth_topic', default="homeassistant/status")
 
-        self.devices: Dict[str, Dict] = self.config.get('MQTT', 'devices')
+        self.devices: Dict[str, Dict] = self.config.get('MQTT', 'devices') or {}
+
         self.HAisOnline = False
 
         # Connect to the MQTT broker
@@ -78,16 +80,17 @@ class HomeAssistant_MQTT:
         self.connected_event = threading.Event()
         self.connected_event.wait(timeout=5)
 
-        if self.HAisOnline:
+        # Send discovery messages for devices (if any)
+        if self.devices and self.HAisOnline:
             self.send_discovery()
         else:
-            logger.error("Failed to connect to MQTT Broker within the timeout period.")
+            logger.error("No devices defined in config.yaml - not sending discovery messages")
 
     def connect_mqtt(self):
         """Sets up the MQTT client and connects to the broker."""
 
         logger.debug("Connecting to MQTT Broker...")
-        self.client = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
+        self.client = mqtt.Client(client_id="MQTT_Client.py", clean_session=True, userdata=None, protocol=mqtt.MQTTv311, transport="tcp")
         self.client.enable_logger()
         self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
 
@@ -120,7 +123,8 @@ class HomeAssistant_MQTT:
 
             if msg.topic == self.birth_topic:
                 if msg.payload.decode() == "online":
-                    self.send_discovery()
+                    if self.devices:
+                        self.send_discovery()
                     self.HAisOnline = True
                 elif msg.payload.decode() == "offline":
                     for device_id in self.devices:
@@ -139,7 +143,7 @@ class HomeAssistant_MQTT:
         """Publishes availability message for a device."""
         if device_id in self.devices:
             availability_topic = f"{self.mqtt_topic}/{device_id}/status"
-            self.client.publish(availability_topic, payload=payload, qos=1, retain=False)
+            self.client.publish(availability_topic, payload=payload, qos=self.qos, retain=False)
             logger.debug(f"Published availability: {payload} to {availability_topic}")
         else:
             logger.warning(f"Device {device_id} not found in devices list.")
@@ -149,15 +153,16 @@ class HomeAssistant_MQTT:
         for device_id, device_info in self.devices.items():
             config_topic = f"{self.mqtt_topic}/{device_id}/config"
             payload_str = json.dumps(device_info)
-            self.client.publish(config_topic, payload=payload_str, qos=1, retain=False)
+            self.client.publish(config_topic, payload=payload_str, qos=self.qos, retain=False)
             logger.debug(f"Published discovery message for {device_id} to {config_topic}")
             self.publish_availability(device_id, "online")
 
-    def send_value(self, device_id, value):
+    def send_value(self, state_topic, value):
         """Sends a new value to Home Assistant."""
-        if device_id not in self.devices:
-            logger.error(f"Device {device_id} not found in devices list.")
-            return
+
+        # Check if state_topic is a full topic path or just an object_id
+        if not state_topic.startswith(self.mqtt_topic):  # Not a full path
+            state_topic = f"{self.mqtt_topic}/{state_topic}/state"  # Assemble full path
 
         epoch_timestamp = int(time.time())
         data = {
@@ -167,14 +172,15 @@ class HomeAssistant_MQTT:
         }
         json_payload_str = json.dumps(data)
 
-        topic = self.devices[device_id]["state_topic"]
-        self.client.publish(topic, payload=json_payload_str, qos=1, retain=False)
-        logger.info(f"Published value: {json_payload_str} to topic: {topic}")
+        
+        self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=False)
+        logger.info(f"Published value: {json_payload_str} to topic: {state_topic}")
 
     def disconnect_mqtt(self):
         """Disconnects the MQTT client from the broker."""
-        for device_id in self.devices:
-            self.publish_availability(device_id, "offline")
+        if self.devices:
+            for device_id in self.devices:
+                self.publish_availability(device_id, "offline")
         self.client.disconnect(reasoncode=0, properties=None)
         self.client.loop_stop()
         logger.info("Disconnected from MQTT Broker!")
@@ -189,6 +195,8 @@ def main():
     config_instance = config.ConfigLoader("config.yaml")
 
     ha_mqtt = HomeAssistant_MQTT(config_instance)
+
+    time.sleep(5)
 
     # Disconnect from the MQTT broker
     ha_mqtt.disconnect_mqtt()
