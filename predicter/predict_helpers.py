@@ -19,7 +19,7 @@ import yaml
 from dotenv import load_dotenv
 import numpy as np
 from matplotlib import pyplot as plt
-from IPython import get_ipython
+
 
 from helpers import config as config
 
@@ -29,17 +29,7 @@ import logging
 logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
 logger = logging.getLogger(logger_name)
 
-
-def is_running_in_jupyter():
-    """Checks if the code is running in a Jupyter Notebook."""
-    try:
-        shell = get_ipython()
-        if shell is not None:
-            return True
-        else:
-            return False
-    except NameError:  # `get_ipython` not defined
-        return False
+plot_active = False
 
 def load_image(filepath):
     """Loads an image from a given file path, with error handling.
@@ -378,8 +368,8 @@ def plot_image(image, title="Image", cmap=None, bgr=False, axis="on"):
         axis (str, optional) : Turn theplot's axis on or off. Defaults to On.
 
     """
-    if not is_running_in_jupyter():
-        return # If running inside a normal .py script, ignore the plot request and simply return
+    if not plot_active: 
+        return # If running inside a normal .py script (Plot active is false), ignore the plot request and simply return
     
     if not isinstance(image, np.ndarray):
         raise TypeError("Image must be a NumPy array.")

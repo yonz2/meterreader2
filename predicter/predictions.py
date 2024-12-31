@@ -1,7 +1,6 @@
 
 import cv2
 from ultralytics import YOLO
-import torch
 import os
 from dotenv import load_dotenv
 # Import Image manipulation functions and other helpers used by the prediction functions
@@ -35,9 +34,7 @@ class MeterReader:
 
         # Determine the device: Apple Silicon or default defined in config.yaml
         self.device = config.get('YOLO', 'device')
-        if torch.backends.mps.is_available():
-            self.device = 'mps' # Check if we it's running on Apple Silicon, then force mps
-        # print(f"Device used for inference: {self.device}")
+        logger.debug(f"Device used for inference: {self.device}")
 
         # Define model paths
         if project_path:

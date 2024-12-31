@@ -9,6 +9,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+      platforms:
+        - linux/amd64
+        #- linux/arm64
+
     ports:
       - 8099:8099
     restart: no
