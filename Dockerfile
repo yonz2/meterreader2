@@ -1,6 +1,19 @@
 # Builder stage
 FROM --platform=$BUILDPLATFORM python:3.12.8-slim-bookworm AS builder
 
+LABEL \
+    org.opencontainers.image.title="Meter Reader" \
+    org.opencontainers.image.description="Efficiently reads analog using advanced object detection." \
+    org.opencontainers.image.url="https://github.com/yonz2/meterreader2" \
+    org.opencontainers.image.source="https://github.com/yonz2/meterreader2" \
+    org.opencontainers.image.vendor="Yonz" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.version="1.0.0" \
+    org.opencontainers.image.created="2025-01-01T14:51:19Z" \
+    org.opencontainers.image.revision="abcdefg" \
+    org.opencontainers.image.documentation="https://github.com/your-github-username/meterreader/blob/main/README.md" \
+    maintainer="Yonz <yonz@me.com>"
+
 WORKDIR /usr/src/app
 
 RUN apt update && apt upgrade -y && \

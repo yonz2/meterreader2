@@ -7,3 +7,7 @@ docker buildx build \
     -t yonz/meterreader:latest \
     -f Dockerfile \
     --push .
+
+
+docker personal access token: login -u yonz
+dckr_pat_ivO-DvQXeOXAyfAYLG5nQTr8LHA

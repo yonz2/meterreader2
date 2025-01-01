@@ -169,3 +169,6 @@ runs/
 counter-*/
 frame-*/
 yolo*.pt
+
+setup_docker_buildx.sh
+
