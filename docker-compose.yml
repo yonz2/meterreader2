@@ -9,6 +9,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+      
     ports:
       - 8099:8099
     restart: no

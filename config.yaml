@@ -18,7 +18,7 @@ Roboflow:
 
 # --- Mongo Database ---
 MongoDB:
-  URI: "mongodb://172.30.32.2:27017/"
+  URI: "mongodb://172.30.32.1:27017/"
   database: "meterreader"
   collection: "image_metadata"
 
