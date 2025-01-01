@@ -9,10 +9,6 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-      platforms:
-        - linux/amd64
-        #- linux/arm64
-
     ports:
       - 8099:8099
     restart: no
@@ -29,8 +25,6 @@ services:
       - /var/data/meterreader/weights:/usr/src/app/weights
       - /var/data/meterreader/templates:/usr/src/app/templates
       - /var/data/meterreader/static:/usr/src/app/static
-
 networks:
    app_network:
      external: true      
-      

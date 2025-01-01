@@ -1,5 +1,3 @@
-# roboflow
-numpy
 python-dotenv
 pymongo
 Jinja2
@@ -10,5 +8,4 @@ watchdog
 python-socketio
 PyYAML
 paho-mqtt
-opencv-contrib-python-headless
-ultralytics
+
