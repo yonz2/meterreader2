@@ -123,9 +123,8 @@ async def process_image(image_path):
         digits_str = ""
         logger.warning("No Digits Value found on image %s", image_path)
 
+
     # Store image metadata and intermediate files in MongoDB
-
-
     file_name_image = os.path.basename(image_path)
     
     if frame_plot is not None:
