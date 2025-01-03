@@ -11,3 +11,6 @@ docker buildx build \
 
 docker personal access token: login -u yonz
 dckr_pat_ivO-DvQXeOXAyfAYLG5nQTr8LHA
+
+
+CloudFlare API: 7d5WaUtkBjspzzyEVZ5FNjip6s-G_ETLr66F5v8v
