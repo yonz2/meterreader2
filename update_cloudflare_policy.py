@@ -19,7 +19,7 @@ POLICY_ID = os.getenv('CLOUDFLARE_POLICY_ID', 'your-policy-id')
 
 BASE_URL = "https://api.cloudflare.com/client/v4"
 
-# --------------------------------------
+
 
 def get_public_ip():
     """Fetches your current public IP address."""
@@ -33,34 +33,32 @@ def get_public_ip():
 
 def update_cloudflare_access_policy(ip_address):
     """Updates the Cloudflare Access policy with the new IP address."""
-    headers = {
-        "Authorization": f"Bearer {API_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    # Get the existing Access policy
-    policy_url = f"{BASE_URL}/accounts/{ACCOUNT_ID}/access/policies/{POLICY_ID}"
     try:
-        response = requests.get(policy_url, headers=headers)
-        response.raise_for_status()
-        policy = response.json().get("result", {})
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching policy: {e}")
+        client = Cloudflare(
+            # This is the default and can be omitted
+            api_email=os.environ.get("CLOUDFLARE_EMAIL"),
+            # This is the default and can be omitted
+            api_key=os.environ.get("CLOUDFLARE_API_KEY"),
+        )
+    except Exception as e:
+        print(f"Error creating Cloudflare client: {e}")
         return
 
-    # Update the IP range in the policy
-    for rule in policy.get('include', []):
-        if 'ip' in rule:
-            rule['ip'] = [f"{ip_address}/32"]
-
-    # Send the updated policy back to Cloudflare
     try:
-        response = requests.put(policy_url, headers=headers, json=policy)
-        response.raise_for_status()
-        print("Cloudflare Access policy updated successfully!")
-    except requests.exceptions.RequestException as e:
-        print(f"Error updating policy: {e}")
+        # Get the existing Access policy
+        policy = client.accounts.access.policies(ACCOUNT_ID, POLICY_ID).get()
 
+        # Assuming your policy uses a simple IP range rule, modify as needed
+        for rule in policy['include']:
+            if 'ip_range' in rule:
+                rule['ip_range'] = f"{ip_address}/32" 
+
+        # Update the policy
+        client.accounts.access.policies(ACCOUNT_ID, POLICY_ID).put(data=policy)
+        print("Cloudflare Access policy updated successfully!")
+
+    except Exception as e:
+        print(f"Error updating Cloudflare Access policy: {e}")
 
 if __name__ == "__main__":
     current_ip = get_public_ip()
