@@ -11,7 +11,7 @@ In my opinion this accuracy is not needed, it's enough to sporadically note the 
 
 This is where this script comes in. Why do it easy, when you can solve it with a complex solution! It's like cracking a walnut with a sledgehammer. (DE: mit Kanonen auf Spatzen schießen)
 
-This Application takes a photo from the Electricity Meter, uses image detection to extract the value, before posting the value on an MQTT-Queue for Home Assistant to process it and update the electricity consumption on the energy dashboard.
+This Application takes a photo of the Electricity Meter taken e.g. by a smrtphone and sent to the app using the upload function `http://<your app URL>>/file` (if using an iPhone, the shortcut `so_75xxx.shortcut` can be used), then applies image detection to extract the value, before posting the value on an MQTT-Queue for Home Assistant to process it and update the electricity consumption on the energy dashboard.
 
 ## Components
 
