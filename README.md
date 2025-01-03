@@ -50,3 +50,26 @@ THe resulting weights need to be moved to the weights directory, or whereever a 
 ## Web Page
 the `static`and `tempates`directories contain the files used by `server.py` to render the web page
 
+# Image Detection Process
+The detation of the value of the electricity meter is done using three different model, to simplify the detection (each model is small enough to allow three t be loaded at the same time). This simplifies the algorithm, as there is hardly any image manipulation required. Inspriration comes from [OpenCV practice: OCR for the electricity meter](https://en.kompf.de/cplus/emeocv.html). However, the use of OCR did not give the expected results.
+
+The idea here is to "divide and conquer". I.e. to desect the image in three simple steps, where each step will isolate a part of the image. Each part is big enough so the model will be simple and quick.
+
+
+### The Frame
+
+![Detected Frame](./static/detected-frame.png)
+
+### The counter
+
+![Detected Counter](./static/detected-counter.png)
+
+### The digits
+
+![Detected Digits](./static/detected-digits.png)
+
+
+### Resulting Value
+
+Final Meter Value: 40276
+

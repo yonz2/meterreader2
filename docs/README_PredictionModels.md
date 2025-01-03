@@ -64,20 +64,18 @@ The idea here is to "divide and conquer". I.e. to desect the image in three simp
 
 ### The Frame
 
-![Detected Frame](static/detected-frame.png)
+![Detected Frame](../static/detected-frame.png)
 
 ### The counter
 
-![Detected Counter](static/detected-counter.png)
+![Detected Counter](../static/detected-counter.png)
 
 ### The digits
 
-![Detected Digits](static/detected-digits.png)
+![Detected Digits](../static/detected-digits.png)
 
 
 ### Resulting Value
-
-Image: /Users/yonz/Workspace/images/meter-frame-1/IMG_6981.jpg
 
 Final Meter Value: 40276
 
