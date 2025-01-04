@@ -50,13 +50,17 @@ The `static` and `templates` directories contain the files used by `server.py` t
 Inspired by [OpenCV practice: OCR for the electricity meter](https://en.kompf.de/cplus/emeocv.html), this project utilizes a three-stage image detection process to extract the meter reading. Instead of relying solely on OCR, which can be prone to errors, it employs a more robust approach:
 
 1. **Frame Detection:**
+
    ![Detected Frame](./static/detected-frame.png)
 
 2. **Counter Detection:**
+
    ![Detected Counter](./static/detected-counter.png)
 
 3. **Digit Extraction:**
+
    ![Detected Digits](./static/detected-digits.png)
+
 
 This "divide and conquer" strategy simplifies the image processing pipeline and improves accuracy.
 
@@ -70,4 +74,4 @@ Contributions are welcome! Please feel free to open issues for bug reports or fe
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the The Unlicense - see the [LICENSE](LICENSE) file for details.
