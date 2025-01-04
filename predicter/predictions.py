@@ -1,8 +1,20 @@
+#
+"""
+Predictions module contains the MeterReader class that uses pre-trained YOLO models to detect the frame,
+counter, and digits on an electricity meter.
 
-import cv2
-from ultralytics import YOLO
+The MeterReader class is used to predict the meter value from an input image.
+It uses the YOLO models to detect the frame, counter, and digits on the meter image.
+The class is initialized with the configuration parameters and the project path.
+The predict_image method is used to call all three detections in one go and returns the detected value (integer) or None if nothing is detected.
+
+"""
 import os
+import logging
 from dotenv import load_dotenv
+
+from ultralytics import YOLO
+
 # Import Image manipulation functions and other helpers used by the prediction functions
 from predicter import predict_helpers
 
@@ -10,11 +22,9 @@ from predicter import predict_helpers
 from helpers import config as config
 
 
-# Make sure to use the same logger as therest of hte application
-import logging
+# Make sure to use the same logger as the rest of the application
 logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
 logger = logging.getLogger(logger_name)
-
 
 class MeterReader:
     """
@@ -34,7 +44,7 @@ class MeterReader:
 
         # Determine the device: Apple Silicon or default defined in config.yaml
         self.device = config.get('YOLO', 'device')
-        logger.debug(f"Device used for inference: {self.device}")
+        logger.debug("Device used for inference: %s", self.device)
 
         # Define model paths
         if project_path:
@@ -44,16 +54,16 @@ class MeterReader:
         self.weights = config.get('YOLO', 'weights')
         self.model_paths = {
             "frame": os.path.join(self.weights_path, self.weights['frame']),
-            "counter": os.path.join(self.weights_path,self.weights['counter']),
+            "counter": os.path.join(self.weights_path, self.weights['counter']),
             "digits": os.path.join(self.weights_path, self.weights['digits']),
         }
 
         # Load models
-        logger.debug(f"Loading models... from:\n{self.weights_path}\n")
+        logger.debug("Loading models... from:\n%s\n", self.weights_path)
         self.model_frame = YOLO(self.model_paths["frame"])
         self.model_counter = YOLO(self.model_paths["counter"])
         self.model_digits = YOLO(self.model_paths["digits"])
-        logger.info(f"Models loaded successfully! - {self.weights}")
+        logger.info("Models loaded successfully! - %s", self.weights)
 
     def detect_frame(self, image_path):
         """
@@ -66,12 +76,12 @@ class MeterReader:
             tuple: Annotated image with bounding boxes, cropped frame image.
         """
         image = predict_helpers.load_image(image_path)
-        logger.debug(f"Processing image: {image_path}, Shape: {image.shape}")
+        logger.debug("Processing image: %s, Shape: %s", image_path, image.shape)
 
         results = self.model_frame(
             image, device=self.device, imgsz=[640, 704], conf=0.4, iou=0.5, verbose=False
         )
-        predict_helpers.plot_image(results[0].plot(), f"Detected Frame on {os.path.basename(image_path)}", bgr=True)
+        predict_helpers.plot_image(results[0].plot(), "Detected Frame on %s" % os.path.basename(image_path), bgr=True)
         frame_image = None
         if results[0].boxes.xyxy is not None:
             box = results[0].boxes.xyxy[0]
@@ -96,7 +106,7 @@ class MeterReader:
 
         counter_image = None
         predict_helpers.plot_image(results[0].plot(), "Detected Counter", bgr=True)
-        if results[0].boxes.xyxy .nelement() !=0:
+        if results[0].boxes.xyxy.nelement() != 0:
             box = results[0].boxes.xyxy[0]
             x1, y1, x2, y2 = map(int, box.tolist())
             counter_image = frame_image[y1:y2, x1:x2].copy()
@@ -132,13 +142,15 @@ class MeterReader:
         )
 
         if results[0].boxes is not None and len(results[0].boxes.xyxy) > 0:
-            predict_helpers.plot_image(results[0].plot(),title="Detected Digits", bgr=True)
+            predict_helpers.plot_image(results[0].plot(), "Detected Digits", bgr=True)
             boxes = results[0].boxes.xyxy.tolist()  # Convert to list for easier iteration
             class_ids = results[0].boxes.cls.tolist()
             names = results[0].names
 
             valid_boxes = []
-
+            # Iterate through the detected boxes and filter out the valid ones based on simple criteria:
+            # 1. Height > Width
+            # 2. Area > 200 square pixels
             for i, box in enumerate(boxes):
                 x1, y1, x2, y2 = map(int, box)
                 w = x2 - x1
@@ -146,34 +158,33 @@ class MeterReader:
                 area = w * h
 
                 if h > w and area >= 200:
-                    valid_boxes.append((i,x1, y1, x2, y2))
-                    # logger.debug(f"Valid Box found: Class {names[int(class_ids[i])]}, x1={x1}, y1={y1}, x2={x2}, y2={y2}, w={w}, h={h}, area={area}")
+                    valid_boxes.append((i, x1, y1, x2, y2))
+                    # logger.debug("Valid Box found: Class %s, x1=%d, y1=%d, x2=%d, y2=%d, w=%d, h=%d, area=%d", names[int(class_ids[i])], x1, y1, x2, y2, w, h, area)
             
             if valid_boxes:
-                # Sort valid boxes by x1 (reading order)
+                # Sort valid boxes by x1 (reading order) to assemble the value string
                 valid_boxes.sort(key=lambda box: box[1])  # Sort by the second element (x1)
 
-                num_digits_to_read = min(6, len(valid_boxes))
-                for digitNo in range(num_digits_to_read):
-                    i, x1, y1, x2, y2 = valid_boxes[digitNo]
+                num_digits_to_read = min(6, len(valid_boxes))  # Read up to 6 digits, the last digit (after the comma is not relevant)
+                for digit_no in range(num_digits_to_read):
+                    i, x1, y1, x2, y2 = valid_boxes[digit_no]
                     digit_name = names[int(class_ids[i])]
-                    digit_value = digit_name_map.get(digit_name) # Get the digit value from the map
+                    digit_value = digit_name_map.get(digit_name)  # Get the digit value from the map
                     if digit_value is not None:
                         meter_value_str += digit_value
-                        # logger.debug(f"Valid box label: #{digitNo+1} (x1={x1}): {digit_name} -> {digit_value}")
+                        # logger.debug("Valid box label: #%d (x1=%d): %s -> %s", digit_no + 1, x1, digit_name, digit_value)
                     else:
-                        # logger.debug(f"Warning: Digit name '{digit_name}' not found in lookup table.")
-                        meter_value_str = None # Reset meter value since a digit could not be identified.
-                        break # Stop processing since the meter value is now invalid
+                        # logger.debug("Warning: Digit name '%s' not found in lookup table.", digit_name)
+                        meter_value_str = None  # Reset meter value since a digit could not be identified.
+                        break  # Stop processing since the meter value is now invalid
 
-                if meter_value_str is not None: # Only convert to int if all digits could be identified.
-                    logger.debug(f"Meter Value (str): {meter_value_str}")
+                if meter_value_str is not None:  # Only convert to int if all digits could be identified.
+                    logger.debug("Meter Value (str): %s", meter_value_str)
                     try:
                         meter_value_int = int(meter_value_str)
-                        # logger.debug(f"Meter Value (int): {meter_value_int}")
+                        # logger.debug("Meter Value (int): %d", meter_value_int)
                     except ValueError:
-                        logger.error(f"Could not convert Meter Value ({meter_value_str}) to int")
-
+                        logger.error("Could not convert Meter Value (%s) to int", meter_value_str)
 
             else:
                 logger.warning("No valid boxes found matching the criteria.")
@@ -211,7 +222,7 @@ class MeterReader:
         digits_plot, digits_str, digits_int = self.detect_digits(counter_image)
         
         if digits_int is not None:
-            logger.debug(f"Detected Meter Value: {digits_int}")
+            logger.debug("Detected Meter Value: %d", digits_int)
             return digits_int
         else:
             logger.debug("No digits detected.")
@@ -231,7 +242,7 @@ def main():
     
     meter_value = meter_reader.predict_image(image_test_path)
 
-    print(f"Image: {image_test_path}\nFinal Meter Value: {meter_value}")
+    print("Image: %s\nFinal Meter Value: %d" % (image_test_path, meter_value))
 
     return 0
 
