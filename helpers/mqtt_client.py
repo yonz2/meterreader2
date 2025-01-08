@@ -73,7 +73,7 @@ class HomeAssistant_MQTT_Client:
         self.birth_topic = self.config.get('MQTT', 'birth_topic', default="homeassistant/status")
 
         self.devices: Dict[str, Dict] = self.config.get('MQTT', 'devices') or {}
-
+        self.HA_device = self.config.get('HomeAssistant', 'device_id') or ""
         self.HAisOnline = False
 
         # Connect to the MQTT broker
@@ -159,6 +159,12 @@ class HomeAssistant_MQTT_Client:
             self.client.publish(config_topic, payload=payload_str, qos=self.qos, retain=False)
             logger.debug(f"Published discovery message for {device_id} to {config_topic}")
             self.publish_availability(device_id, "online")
+        if self.HA_device: # Handle a single Device defined in config.ymal (configured in HA configuration.ymal)
+            # Check if state_topic is a full topic path or just an object_id
+            state_topic = f"{self.mqtt_topic}/{self.HA_device}/state"  # Assemble full path
+            yaml_file = f"~/static/Last_Value_{state_topic.replace("/","_")}.yaml"
+            last_message_sent = self.load_mqtt_data(yaml_file)
+            self.send_value(self.HA_device, last_message_sent.value, retain_flag=False)
 
     def save_mqtt_data(self, data, yaml_file):
         """Saves the MQTT data to a YAML file."""
