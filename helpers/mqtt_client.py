@@ -210,7 +210,7 @@ class HomeAssistant_MQTT_Client:
         
         self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=retain_flag)
         logger.info(f"Published value: {json_payload_str} to topic: {state_topic} Retain={retain_flag}")
-        yaml_file = f"~/Last_Value_{state_topic.replace("/","_").yaml}"
+        yaml_file = f"~/static/Last_Value_{state_topic.replace("/","_").yaml}"
         self.save_mqtt_data(data, yaml_file)
 
     def disconnect_mqtt(self):
