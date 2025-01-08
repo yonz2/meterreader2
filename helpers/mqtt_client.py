@@ -87,7 +87,7 @@ class HomeAssistant_MQTT_Client:
         if self.devices and self.HAisOnline:
             self.send_discovery()
         else:
-            logger.error("No devices defined in config.yaml - not sending discovery messages")
+            logger.info("No devices defined in config.yaml - not sending discovery messages")
 
     def connect_mqtt(self):
         """Sets up the MQTT client and connects to the broker."""
