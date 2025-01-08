@@ -21,7 +21,7 @@ import json
 import time
 import logging
 import threading
-
+import yaml
 from typing import Dict
 
 import paho.mqtt.client as mqtt
@@ -160,6 +160,31 @@ class HomeAssistant_MQTT_Client:
             logger.debug(f"Published discovery message for {device_id} to {config_topic}")
             self.publish_availability(device_id, "online")
 
+    def save_mqtt_data(self, data, yaml_file):
+        """Saves the MQTT data to a YAML file."""
+        try:
+            with open(yaml_file, 'w') as f:
+                yaml.dump(data, f)
+        except Exception as e:
+            print(f"Error saving data to YAML: {e}")
+
+    def load_mqtt_data(self, yaml_file):
+        """Loads the last MQTT data from the YAML file."""
+        try:
+            with open(yaml_file, 'r') as f:
+                return yaml.safe_load(f)
+        except FileNotFoundError:
+            print("YAML file not found. Returning default data.")
+            return {
+                "timestamp": 0,
+                "timestamp_str": str(time.ctime(0)),  # Epoch time
+                "value": None,
+            }
+        except Exception as e:
+            print(f"Error loading data from YAML: {e}")
+            return None
+
+
     def send_value(self, state_topic, value, retain_flag=False):
         """Sends a new value to Home Assistant."""
 
@@ -168,7 +193,7 @@ class HomeAssistant_MQTT_Client:
             state_topic = f"{self.mqtt_topic}/{state_topic}/state"  # Assemble full path
 
         epoch_timestamp = int(time.time())
-        
+
         # Make sure a numeric value is a float with max 2 decimal places
         try:
             mqtt_value = round(float(value), 2)
@@ -185,6 +210,8 @@ class HomeAssistant_MQTT_Client:
         
         self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=retain_flag)
         logger.info(f"Published value: {json_payload_str} to topic: {state_topic} Retain={retain_flag}")
+        yaml_file = f"~/Last_Value_{state_topic.replace("/","_").yaml}"
+        self.save_mqtt_data(data, yaml_file)
 
     def disconnect_mqtt(self):
         """Disconnects the MQTT client from the broker."""
