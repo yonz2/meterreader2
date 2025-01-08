@@ -19,20 +19,23 @@
 import os
 import json
 import time
+import logging
+import threading
+
 from typing import Dict
 
 import paho.mqtt.client as mqtt
-import threading
-
-import logging
-# Set up logging
-logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
-logger = logging.getLogger(logger_name)
-
 
 # Import your custom modules
 import helpers.config as config
 
+
+# Set up logging
+logger_name = os.environ.get("LOGGER_NAME") or os.path.splitext(os.path.basename(__file__))[0]
+logger = logging.getLogger(logger_name)
+
+# pylint: disable=w1203
+# pylint: disable=C0103
 class HomeAssistant_MQTT_Client:
     """
     MQTT client for interacting with Home Assistant.
@@ -186,15 +189,16 @@ class HomeAssistant_MQTT_Client:
         logger.info("Disconnected from MQTT Broker!")
 
 def main():
-    #
-    # This is just for testing the basic functionality of the MQTT client.
-    # to make sure it is created and can connect to the broker defined in config.yaml
-    #
-    # Complete test is in 'mqtt_client_test.py'
-    # Create a Config object
+    """
+        This is just for testing the basic functionality of the MQTT client.
+        to make sure it is created and can connect to the broker defined in config.yaml
+        
+        Complete test is in 'mqtt_client_test.py'
+        Create a Config object
+    """
     config_instance = config.ConfigLoader("config.yaml")
 
-    ha_mqtt = HomeAssistant_MQTT(config_instance)
+    ha_mqtt = HomeAssistant_MQTT_Client(config_instance)
 
     time.sleep(5)
 
