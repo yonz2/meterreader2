@@ -119,7 +119,7 @@ async def process_image(image_path):
         # This is the key statement in the whole application...
         # Send a value to Home Assistant
         device_id = config_instance.get("HomeAssistant", "device_id")
-        ha_mqtt.send_value(device_id, float(digits_int),retain_flag=True)
+        ha_mqtt.send_value(device_id, float(digits_int))
         #
         #
     else:

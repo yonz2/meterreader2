@@ -85,7 +85,7 @@ class HomeAssistant_MQTT_Client:
         self.connected_event.wait(timeout=5)
 
         # Send discovery messages for devices (if any)
-        if self.devices and self.HAisOnline:
+        if (self.devices or self.HA_device) and self.HAisOnline:
             self.send_discovery()
         else:
             logger.info("No devices defined in config.yaml - not sending discovery messages")
@@ -127,7 +127,7 @@ class HomeAssistant_MQTT_Client:
 
             if msg.topic == self.birth_topic:
                 if msg.payload.decode() == "online":
-                    if self.devices:
+                    if self.devices or self.HA_device:
                         self.send_discovery()
                     self.HAisOnline = True
                 elif msg.payload.decode() == "offline":
@@ -161,15 +161,14 @@ class HomeAssistant_MQTT_Client:
             logger.debug(f"Published discovery message for {device_id} to {config_topic}")
             self.publish_availability(device_id, "online")
         if self.HA_device: # Handle a single Device defined in config.ymal (configured in HA configuration.ymal)
-            # Check if state_topic is a full topic path or just an object_id
-            state_topic = f"{self.mqtt_topic}/{self.HA_device}/state"  # Assemble full path
-            yaml_file = f"~/static/Last_Value_{state_topic.replace("/","_")}.yaml"
-            last_message_sent = self.load_mqtt_data(yaml_file)
-            self.send_value(self.HA_device, last_message_sent.value, retain_flag=False)
+            # Check if state_topic is a full topic path or just an object_id            
+            last_message_sent = self.load_mqtt_data(self.HA_device)
+            logger.debug(f"Last known message published to {self.HA_device}: {last_message_sent}")
+            self.send_value(self.HA_device, last_message_sent.get("value"), retain_flag=False)
 
     def save_mqtt_data(self, data, topic):
         """Saves the MQTT data to a YAML file."""
-        yaml_file = f"{self.yaml_last_value_dir}/{topic.replace("/","_")}.yaml"
+        yaml_file = f"{self.yaml_last_value_dir}/Last_Value_{topic.replace("/","_")}.yaml"
         try:
             with open(yaml_file, 'w') as f:
                 yaml.dump(data, f)
@@ -178,7 +177,7 @@ class HomeAssistant_MQTT_Client:
 
     def load_mqtt_data(self, topic):
         """Loads the last MQTT data from the YAML file."""
-        yaml_file = f"{self.yaml_last_value_dir}/{topic.replace("/","_")}.yaml"
+        yaml_file = f"{self.yaml_last_value_dir}/Last_Value_{topic.replace("/","_")}.yaml"
         try:
             with open(yaml_file, 'r') as f:
                 return yaml.safe_load(f)
@@ -220,9 +219,7 @@ class HomeAssistant_MQTT_Client:
         self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=retain_flag)
         logger.info(f"Published value: {json_payload_str} to topic: {state_topic} Retain={retain_flag}")
 
-        yaml_file = f"~/static/Last_Value_{state_topic.replace("/","_")}.yaml"
-
-        self.save_mqtt_data(data, yaml_file)
+        self.save_mqtt_data(data, state_topic)
 
     def disconnect_mqtt(self):
         """Disconnects the MQTT client from the broker."""
