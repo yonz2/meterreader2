@@ -1,5 +1,4 @@
-# Builder stage
-FROM --platform=$BUILDPLATFORM python:3.12.8-slim-bookworm AS builder
+FROM python:3.12.8-slim-bookworm
 
 LABEL \
     org.opencontainers.image.title="Meter Reader" \
@@ -15,13 +14,15 @@ LABEL \
     maintainer="Yonz <yonz@me.com>"
 
 WORKDIR /usr/src/app
+EXPOSE 8099
+
+ENV PIP_ROOT_USER_ACTION=ignore
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 RUN apt update && apt upgrade -y && \
     apt install --no-install-recommends -y curl wget net-tools iputils-ping && \
     rm -rf /var/lib/apt/lists/*
-
-ENV PIP_ROOT_USER_ACTION=ignore
-
 
 COPY requirements.txt .
 # Install the more complex libraries "manually" to ensure they are installed correctly
@@ -35,21 +36,6 @@ RUN python -m pip install opencv-contrib-python-headless && \
     # python -m pip install roboflow && \
     python -m pip install ultralytics
     
-
-  
-# Final stage
-FROM --platform=$BUILDPLATFORM python:3.12.8-slim-bookworm
-
-WORKDIR /usr/src/app
-EXPOSE 8099
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin/hypercorn /usr/local/bin/hypercorn
-
-
 # Copy application files ... ignoring file patterns defined in .dockerignore
 COPY . .
 

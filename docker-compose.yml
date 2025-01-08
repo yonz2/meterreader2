@@ -3,7 +3,6 @@ services:
     image: meterreader
     container_name: meterreader
     hostname: meterreader
-    domainname: docker
     networks:
       - app_network
     build:

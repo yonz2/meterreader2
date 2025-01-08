@@ -55,7 +55,7 @@ HomeAssistant:
 
 # --- MQTT ---
 MQTT:
-  broker: dokkan.zt     # The hostname or IP address of your MQTT broker
+  broker: homeassistant.zt     # The hostname or IP address of your MQTT broker
   port: 1883            # The port used by your MQTT broker
   username: mqtt_user   # Your MQTT username
   password: Dokkan2025  # Your MQTT password
