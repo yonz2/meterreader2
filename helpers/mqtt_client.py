@@ -160,7 +160,7 @@ class HomeAssistant_MQTT_Client:
             logger.debug(f"Published discovery message for {device_id} to {config_topic}")
             self.publish_availability(device_id, "online")
 
-    def send_value(self, state_topic, value):
+    def send_value(self, state_topic, value, retain_flag=False):
         """Sends a new value to Home Assistant."""
 
         # Check if state_topic is a full topic path or just an object_id
@@ -168,16 +168,23 @@ class HomeAssistant_MQTT_Client:
             state_topic = f"{self.mqtt_topic}/{state_topic}/state"  # Assemble full path
 
         epoch_timestamp = int(time.time())
+        
+        # Make sure a numeric value is a float with max 2 decimal places
+        try:
+            mqtt_value = round(float(value), 2)
+        except:
+            mqtt_value = value
+
         data = {
             "timestamp": epoch_timestamp,
             "timestamp_str": str(time.ctime()),
-            "value": float(value),
+            "value": mqtt_value,
         }
         json_payload_str = json.dumps(data)
 
         
-        self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=False)
-        logger.info(f"Published value: {json_payload_str} to topic: {state_topic}")
+        self.client.publish(state_topic, payload=json_payload_str, qos=self.qos, retain=retain_flag)
+        logger.info(f"Published value: {json_payload_str} to topic: {state_topic} Retain={retain_flag}")
 
     def disconnect_mqtt(self):
         """Disconnects the MQTT client from the broker."""

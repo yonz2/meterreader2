@@ -4,9 +4,12 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
+
+# pylint: disable=w1203
+# pylint: disable=C0103
 
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 
 # Import the Quart modules, used to provide the HTTP Server and rendering of the HTML templates
 from quart import Quart, request, Response, jsonify, abort, render_template, websocket, send_file
@@ -19,10 +22,6 @@ from helpers import custom_logger
 # configuration settings and make them available to the application.
 from helpers import config
 
-# Import the MeterReader class from the predictions module. 
-# The MeterReader class is used to process images and extract meter readings.
-from predicter.predictions import MeterReader
-
 # Import the MongoDBHandler class from the helpers module. 
 # This class is used to interact with the MongoDB database.
 from helpers.monogodb_handler import MongoDBHandler
@@ -31,8 +30,13 @@ from helpers.monogodb_handler import MongoDBHandler
 # This class is used to send data to Home Assistant.
 from helpers.mqtt_client import HomeAssistant_MQTT_Client
 
+
 # Import Image manipulation functions and other helpers used by the prediction functions
 from predicter import predict_helpers
+
+# Import the MeterReader class from the predictions module. 
+# The MeterReader class is used to process images and extract meter readings.
+from predicter.predictions import MeterReader
 
 
 # Initialize the helper Classes and functions:
@@ -115,7 +119,7 @@ async def process_image(image_path):
         # This is the key statement in the whole application...
         # Send a value to Home Assistant
         device_id = config_instance.get("HomeAssistant", "device_id")
-        ha_mqtt.send_value(device_id, float(digits_int))
+        ha_mqtt.send_value(device_id, float(digits_int),retain_flag=True)
         #
         #
     else:
