@@ -65,3 +65,4 @@ MQTT:
   will_topic: homeassistant/status
   will_payload: offline
   qos: 1                # Quality of service. 0, 1, or 2
+  last_value_directory: "static"

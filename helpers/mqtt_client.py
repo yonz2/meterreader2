@@ -74,6 +74,7 @@ class HomeAssistant_MQTT_Client:
 
         self.devices: Dict[str, Dict] = self.config.get('MQTT', 'devices') or {}
         self.HA_device = self.config.get('HomeAssistant', 'device_id') or ""
+        self.yaml_last_value_dir = self.config.get('MQTT', 'last_value_directory') or "static"
         self.HAisOnline = False
 
         # Connect to the MQTT broker
@@ -166,16 +167,18 @@ class HomeAssistant_MQTT_Client:
             last_message_sent = self.load_mqtt_data(yaml_file)
             self.send_value(self.HA_device, last_message_sent.value, retain_flag=False)
 
-    def save_mqtt_data(self, data, yaml_file):
+    def save_mqtt_data(self, data, topic):
         """Saves the MQTT data to a YAML file."""
+        yaml_file = f"{self.yaml_last_value_dir}/{topic.replace("/","_")}.yaml"
         try:
             with open(yaml_file, 'w') as f:
                 yaml.dump(data, f)
         except Exception as e:
             print(f"Error saving data to YAML: {e}")
 
-    def load_mqtt_data(self, yaml_file):
+    def load_mqtt_data(self, topic):
         """Loads the last MQTT data from the YAML file."""
+        yaml_file = f"{self.yaml_last_value_dir}/{topic.replace("/","_")}.yaml"
         try:
             with open(yaml_file, 'r') as f:
                 return yaml.safe_load(f)
